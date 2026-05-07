@@ -18,9 +18,7 @@ function EvalBar({
 }: EvalBarProps) {
   const whiteHeight = evalPercent;
   return (
-    <div
-      className={`flex flex-col items-center gap-1 self-stretch ${className}`}
-    >
+    <div className={`flex flex-col items-center gap-1 h-full ${className}`}>
       <div
         className={`w-4 flex-1 rounded-sm overflow-hidden border border-white/10 bg-[#020202] flex relative ${
           isWhiteBottom ? "flex-col-reverse" : "flex-col"

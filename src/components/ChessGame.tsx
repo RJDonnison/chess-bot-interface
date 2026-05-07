@@ -40,6 +40,7 @@ type Props = {
   hosts: Host[];
   timeout: number;
   stockfishDepth: number;
+  botDelay: number;
 };
 
 type Color = "White" | "Black";
@@ -48,24 +49,15 @@ function randomColor(): Color {
   return Math.random() > 0.5 ? "White" : "Black";
 }
 
-function getGameOverMessage(
-  chess: Chess,
-  playerColor?: Color,
-): { title: string; description: string } {
+function getGameOverMessage(chess: Chess): {
+  title: string;
+  description: string;
+} {
   if (chess.isCheckmate()) {
     const winner = chess.turn() === "w" ? "Black" : "White";
-    const playerWon = winner === playerColor;
     return {
-      title: playerColor
-        ? playerWon
-          ? "You Win!"
-          : "You Lose"
-        : `${winner} Won!`,
-      description: playerColor
-        ? playerWon
-          ? "Checkmate! Well played."
-          : "Checkmate. Better luck next time."
-        : "Checkmate",
+      title: `${winner} Won!`,
+      description: "Checkmate",
     };
   }
   if (chess.isStalemate())
@@ -106,6 +98,17 @@ function loadGameFromLocalStorage(): PersistedGameState | null {
   }
 }
 
+function initChessGame(): Chess {
+  const stored = loadGameFromLocalStorage();
+  const game = new Chess();
+  if (stored) {
+    try {
+      game.load(stored.fen);
+    } catch {}
+  }
+  return game;
+}
+
 export default function ChessGame({
   onColorsAssigned,
   humanColor,
@@ -116,10 +119,8 @@ export default function ChessGame({
   hosts,
   timeout,
   stockfishDepth,
+  botDelay,
 }: Props) {
-  const maybeStored = loadGameFromLocalStorage();
-  const [turnNumber, setTurnNumber] = useState<number>(maybeStored?.turn || 1);
-
   const [gameOverOpen, setGameOverOpen] = useState(false);
   const [gameOverMessage, setGameOverMessage] = useState({
     title: "",
@@ -130,16 +131,6 @@ export default function ChessGame({
   const [botErrorOpen, setBotErrorOpen] = useState(false);
   const [botErrorDescription, setBotErrorDescription] = useState("");
 
-  const chessGameRef = useRef(new Chess());
-  const chessGame = chessGameRef.current;
-
-  if (maybeStored && chessGame.fen() !== maybeStored.fen) {
-    try {
-      chessGame.load(maybeStored.fen);
-    } catch {}
-  }
-
-  const [chessPosition, setChessPosition] = useState(chessGame.fen());
   const [moveFrom, setMoveFrom] = useState("");
   const [optionSquares, setOptionSquares] = useState({});
   const [promotionOpen, setPromotionOpen] = useState(false);
@@ -147,6 +138,16 @@ export default function ChessGame({
     from: string;
     to: string;
   } | null>(null);
+
+  const chessGameRef = useRef<Chess | null>(null);
+  if (chessGameRef.current === null) {
+    chessGameRef.current = initChessGame();
+  }
+  const chessGame = chessGameRef.current;
+
+  const storedTurn = loadGameFromLocalStorage()?.turn;
+  const [turnNumber, setTurnNumber] = useState<number>(storedTurn || 1);
+  const [chessPosition, setChessPosition] = useState(chessGame.fen());
 
   const turn = (): Color => (chessGame.turn() === "w" ? "White" : "Black");
 
@@ -206,7 +207,7 @@ export default function ChessGame({
     setOptionSquares({});
     saveMove();
     if (chessGame.isGameOver()) {
-      setGameOverMessage(getGameOverMessage(chessGame, turn()));
+      setGameOverMessage(getGameOverMessage(chessGame));
       setGameOverOpen(true);
     }
     return true;
@@ -218,7 +219,7 @@ export default function ChessGame({
     setOptionSquares({});
     saveMove();
     if (chessGame.isGameOver()) {
-      setGameOverMessage(getGameOverMessage(chessGame, turn()));
+      setGameOverMessage(getGameOverMessage(chessGame));
       setGameOverOpen(true);
     }
   }
@@ -324,26 +325,40 @@ export default function ChessGame({
     return hosts.find((h) => h.id === hostId) || null;
   }
 
+  const isBotThinkingRef = useRef(false);
+
   useEffect(() => {
     const currentTurnHost = getCurrentTurnHost();
     if (
       !currentTurnHost ||
       currentTurnHost.id === "human" ||
+      botErrorDescription !== "" ||
       chessGame.isGameOver() ||
-      isBotThinking
+      isBotThinkingRef.current
     ) {
       return;
     }
 
+    let cancelled = false;
+
     const fetchBotMove = async () => {
+      isBotThinkingRef.current = true;
       setIsBotThinking(true);
       try {
+        if (botDelay > 0) {
+          await new Promise((resolve) => setTimeout(resolve, botDelay * 1000));
+        }
+
+        if (cancelled) return;
+
         const move = await getBotMove(
           chessGame.fen(),
           currentTurnHost,
           timeout,
           stockfishDepth,
         );
+
+        if (cancelled) return;
 
         if (!move) {
           setBotErrorDescription(
@@ -370,7 +385,7 @@ export default function ChessGame({
           setTurnNumber(turnNumber + 1);
 
           if (chessGame.isGameOver()) {
-            setGameOverMessage(getGameOverMessage(chessGame, humanColor));
+            setGameOverMessage(getGameOverMessage(chessGame));
             setGameOverOpen(true);
           }
         } catch (error) {
@@ -378,19 +393,26 @@ export default function ChessGame({
           setBotErrorOpen(true);
         }
       } finally {
-        setIsBotThinking(false);
+        if (!cancelled) {
+          isBotThinkingRef.current = false;
+          setIsBotThinking(false);
+        }
       }
     };
 
     fetchBotMove();
+    return () => {
+      cancelled = true;
+      isBotThinkingRef.current = false;
+    };
   }, [
     player1HostId,
     player2HostId,
     player1Color,
     player2Color,
-    isBotThinking,
     timeout,
     stockfishDepth,
+    botDelay,
     turnNumber,
     humanColor,
   ]);
@@ -406,6 +428,7 @@ export default function ChessGame({
     setGameOverOpen(false);
     setConfirmOpen(false);
     setBotErrorOpen(false);
+    setBotErrorDescription("");
     saveGameToLocalStorage({
       fen: chessGame.fen(),
       turn: 1,
@@ -466,15 +489,19 @@ export default function ChessGame({
           </Popover>
         </div>
 
-        <div className="max-w-xl flex items-stretch gap-4">
-          <EvalBar
-            evalPercent={evalResult.evalPercent}
-            isWhiteBottom={
-              humanColor ? humanColor.toLowerCase() === "white" : true
-            }
-            evalText={evalResult.evalText}
-          />
-          <Chessboard options={chessboardOptions} />
+        <div className="flex items-stretch gap-4">
+          <div className="w-8 shrink-0">
+            <EvalBar
+              evalPercent={evalResult.evalPercent}
+              isWhiteBottom={
+                humanColor ? humanColor.toLowerCase() === "white" : true
+              }
+              evalText={evalResult.evalText}
+            />
+          </div>
+          <div className="max-w-xl shrink-0">
+            <Chessboard options={chessboardOptions} />
+          </div>
         </div>
 
         <div className="flex items-center gap-4 text-xs tracking-wider text-muted-foreground">

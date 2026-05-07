@@ -62,6 +62,7 @@ function savePlayerConfigToLocalStorage(config: PlayerConfig) {
 export default function App() {
   const timeoutQuery = getQueryParam("timeout");
   const depthQuery = getQueryParam("depth");
+  const botDelayQuery = getQueryParam("botDelay");
 
   const savedPlayerConfig = loadPlayerConfigFromLocalStorage();
 
@@ -70,6 +71,9 @@ export default function App() {
   );
   const [stockfishDepth, setDepthState] = useState<number>(
     depthQuery ? parseInt(depthQuery) : 12,
+  );
+  const [botDelay, setBotDelayState] = useState<number>(
+    botDelayQuery ? parseFloat(botDelayQuery) : 0,
   );
   const [hosts, setHosts] = useState<Host[]>(loadHostsFromLocalStorage);
   const [player1HostId, setPlayer1HostIdState] = useState<string>(
@@ -91,8 +95,14 @@ export default function App() {
   };
 
   const setStockfishDepth = (value: number) => {
-    setDepthState(value);
-    setQueryParam("depth", value);
+    const validDepth = Math.max(1, value);
+    setDepthState(validDepth);
+    setQueryParam("depth", validDepth);
+  };
+
+  const setBotDelay = (value: number) => {
+    setBotDelayState(value);
+    setQueryParam("botDelay", value);
   };
 
   const setPlayer1HostId = (id: string) => {
@@ -167,6 +177,21 @@ export default function App() {
             />
           </div>
 
+          <div className="flex flex-col gap-2">
+            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-1 mb-1">
+              Bot Delay (seconds)
+            </label>
+            <Input
+              type="number"
+              min={0}
+              step={0.1}
+              placeholder="0"
+              value={botDelay}
+              onChange={(e) => setBotDelay(Number(e.target.value))}
+              className="w-full"
+            />
+          </div>
+
           <div className="border-t pt-4">
             <Players
               hosts={hosts}
@@ -191,11 +216,13 @@ export default function App() {
         <ChessGame
           onColorsAssigned={handleColorsAssigned}
           humanColor={
-            player1HostId === "human"
-              ? player1Color || undefined
-              : player2HostId === "human"
-                ? player2Color || undefined
-                : undefined
+            player1HostId === "human" && player2HostId === "human"
+              ? "White"
+              : player1HostId === "human"
+                ? player1Color || undefined
+                : player2HostId === "human"
+                  ? player2Color || undefined
+                  : undefined
           }
           player1HostId={player1HostId}
           player2HostId={player2HostId}
@@ -204,6 +231,7 @@ export default function App() {
           hosts={hosts}
           timeout={timeout}
           stockfishDepth={stockfishDepth}
+          botDelay={botDelay}
         />
       </ResizablePanel>
     </ResizablePanelGroup>
