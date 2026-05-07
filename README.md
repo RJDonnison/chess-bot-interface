@@ -69,22 +69,9 @@ It must return JSON in this shape:
 
 The move must be in **UCI notation**.
 
-### Error responses
-
-| Status | When to use                                |
-| ------ | ------------------------------------------ |
-| `400`  | The FEN string is missing or invalid       |
-| `500`  | Your engine failed or timed out internally |
-
-Error responses should include a JSON body:
-
-```json
-{ "error": "Invalid FEN: piece placement must contain exactly 8 ranks" }
-```
-
 ### FEN strings
 
-The interface sends a complete [FEN string](https://en.wikipedia.org/wiki/Forsyth%E2%80%93Edwards_Notation) with every request. FEN encodes the full board state including whose turn it is, so your engine does not need to track game history or color separately. Each request is stateless.
+The interface sends a complete [FEN string](https://en.wikipedia.org/wiki/Forsyth%E2%80%93Edwards_Notation) with every request. FEN encodes the full board state so each request is stateless.
 
 ### CORS
 
@@ -94,40 +81,11 @@ Your server must allow cross-origin requests from wherever the interface is host
 Access-Control-Allow-Origin: *
 ```
 
-### Example implementation (Python / FastAPI)
+### Resources
 
-```python
-from fastapi import FastAPI, Query, HTTPException
-from fastapi.middleware.cors import CORSMiddleware
-import chess
-import chess.engine
-
-app = FastAPI()
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_methods=["GET"],
-)
-
-@app.get("/bestmove")
-def best_move(fen: str = Query(...)):
-    try:
-        board = chess.Board(fen)
-    except ValueError:
-        raise HTTPException(status_code=400, detail="Invalid FEN string")
-
-    # Replace with your own engine logic
-    move = next(iter(board.legal_moves))
-    return { "bestmove": move.uci() }
-```
-
-For the full API specification including all fields, response schemas, and examples, see [`api_spec.yml`](./api_spec.yml).
-
-### Resources 
-
-- [Chess Programing Wiki](https://www.chessprogramming.org/Main_Page)
+- [Chess Programming Wiki](https://www.chessprogramming.org/Main_Page)
 - [Sebastian Lague Chess Bot Series](https://youtube.com/playlist?list=PLFt_AvWsXl0cvHyu32ajwh2qU1i6hl77c&si=8QvuRh98jtMaYEhq)
+- [My Chess Bot](https://github.com/RJDonnison/Chess-Bot)
 
 ---
 
