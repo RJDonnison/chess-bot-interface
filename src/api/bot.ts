@@ -53,8 +53,8 @@ async function getExternalBotMove(
   timeoutSeconds: number,
 ): Promise<string | null> {
   try {
-    const response = await fetch(host.url, {
-      method: "POST",
+    const response = await fetch(`${host.url}/bestmove`, {
+      method: "GET",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ fen, timeout: timeoutSeconds }),
     });
@@ -75,12 +75,12 @@ async function getExternalBotMove(
 export async function getBotMove(
   fen: string,
   host: Host,
-  _timeoutSeconds: number,
+  timeoutSeconds: number,
   depth: number = 12,
 ): Promise<string | null> {
   if (host.id === "stockfish") {
-    return await getLocalStockfishMove(fen, _timeoutSeconds, depth);
+    return await getLocalStockfishMove(fen, timeoutSeconds, depth);
   }
 
-  return await getExternalBotMove(fen, host, _timeoutSeconds);
+  return await getExternalBotMove(fen, host, timeoutSeconds);
 }
