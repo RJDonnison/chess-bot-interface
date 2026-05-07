@@ -124,6 +124,11 @@ def best_move(fen: str = Query(...)):
 
 For the full API specification including all fields, response schemas, and examples, see [`api_spec.yml`](./api_spec.yml).
 
+### Resources 
+
+- [Chess Programing Wiki](https://www.chessprogramming.org/Main_Page)
+- [Sebastian Lague Chess Bot Series](https://youtube.com/playlist?list=PLFt_AvWsXl0cvHyu32ajwh2qU1i6hl77c&si=8QvuRh98jtMaYEhq)
+
 ---
 
 ## Built-in Stockfish Host
