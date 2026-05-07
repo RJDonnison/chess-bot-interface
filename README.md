@@ -1,6 +1,6 @@
 # Chess Bot Web Interface
 
-A web interface for playing chess against configurable bots. Play against the built-in Stockfish engine or challenge bots that follow the API spec.
+A web interface for playing chess against bots. Play against the built-in Stockfish engine or challenge bots that follow the API spec.
 
 ---
 
@@ -45,7 +45,7 @@ The new host will appear in the dropdown and persist across sessions.
 
 Click the pencil icon next to any host in the **Hosts** panel to edit its name or URL, or the trash icon to remove it.
 
-> **Note:** The built-in Stockfish host cannot be removed.
+> **Note:** The built-in host's cannot be removed.
 
 ---
 
