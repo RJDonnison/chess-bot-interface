@@ -1,0 +1,107 @@
+openapi: 3.1.0
+info:
+  title: Chess Bot API
+  description: >
+    A stateless chess move API. Submit any valid FEN string and receive the
+    engine's best move in UCI notation. A single endpoint serves
+    both colors of any game with no session tracking required.
+  version: 1.0.0
+
+paths:
+  /bestmove:
+    get:
+      summary: Get the best move for a given position
+      description: >
+        Accepts a FEN string representing the current board position and returns
+        the engine's best move in UCI notation (e.g. `e2e4`, `g1f3`).
+      operationId: getBestMove
+      parameters:
+        - name: fen
+          in: query
+          required: true
+          description: >
+            A complete FEN string representing the board position. Must include
+            all 6 fields: piece placement, active color, castling rights, en
+            passant target, halfmove clock, and fullmove number.
+          schema:
+            type: string
+          example: "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 1"
+
+      responses:
+        "200":
+          description: The engine calculated a best move.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BestMoveResponse"
+              examples:
+                normal_move:
+                  summary: A standard piece move
+                  value:
+                    bestmove: "e2e4"
+                castling:
+                  summary: Castling move
+                  value:
+                    bestmove: "e1g1"
+                promotion:
+                  summary: Pawn promotion
+                  value:
+                    bestmove: "e7e8q"
+
+        "400":
+          description: The FEN string is missing or invalid.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              examples:
+                missing_fen:
+                  summary: No FEN provided
+                  value:
+                    error: "Missing required query parameter: fen"
+                invalid_fen:
+                  summary: Malformed FEN string
+                  value:
+                    error: "Invalid FEN: piece placement must contain exactly 8 ranks"
+
+        "500":
+          description: The engine encountered an internal error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              examples:
+                engine_error:
+                  summary: Engine failed to return a move
+                  value:
+                    error: "Engine error: failed to calculate move"
+
+components:
+  schemas:
+    BestMoveResponse:
+      type: object
+      required:
+        - bestmove
+      properties:
+        bestmove:
+          type: string
+          description: >
+            The best move in UCI notation. For normal moves this is the origin
+            and destination square (e.g. `e2e4`). For pawn promotions a piece
+            character is appended (e.g. `e7e8q`). For castling, the king's
+            origin and destination squares are used (e.g. `e1g1`).
+          examples:
+            - "e2e4"
+            - "e7e8q"
+            - "e1g1"
+
+    ErrorResponse:
+      type: object
+      required:
+        - error
+      properties:
+        error:
+          type: string
+          description: A human-readable description of what went wrong.
+          examples:
+            - "Invalid FEN: piece placement must contain exactly 8 ranks"
