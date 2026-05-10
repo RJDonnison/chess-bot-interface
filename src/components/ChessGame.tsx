@@ -22,7 +22,7 @@ import {
   PopoverContent,
 } from "@/components/ui/popover";
 import { toast } from "sonner";
-import { getBotMove } from "@/api/bot";
+import { getBotMove, getDebugBitboard } from "@/api/bot";
 import { type Host } from "./HostList";
 import EvalBar from "@/components/EvalBar";
 import { useStockfishEval } from "@/lib/useStockfishEval";
@@ -268,11 +268,11 @@ export default function ChessGame({
     piece?: string | null,
   ): void {
     if (debugEnabled && debugHost) {
-      const url = `${debugHost.url}/debug?sq=${square}`;
-      fetch(url)
-        .then((res) => res.text())
-        .then((text) => {
-          const bitboard = BigInt(text);
+      setDebugSquareStyles({});
+      getDebugBitboard(debugHost, chessPosition, square)
+        .then((bitboard) => {
+          if (bitboard === null) return;
+
           const debugSquares = bitboardToSquares(bitboard);
 
           const newStyles: Record<string, React.CSSProperties> = {};
@@ -374,6 +374,36 @@ export default function ChessGame({
           : player2HostId;
     return hosts.find((h) => h.id === hostId) || null;
   }
+
+  useEffect(() => {
+    if (!debugEnabled || !debugHost) {
+      setDebugSquareStyles({});
+      return;
+    }
+
+    setDebugSquareStyles({});
+    getDebugBitboard(debugHost, chessPosition)
+      .then((bitboard) => {
+        if (bitboard === null) {
+          setDebugSquareStyles({});
+          return;
+        }
+
+        const debugSquares = bitboardToSquares(bitboard);
+        const newStyles: Record<string, React.CSSProperties> = {};
+        debugSquares.forEach((sq) => {
+          newStyles[sq] = {
+            background: "rgba(220, 38, 38, 0.4)",
+          };
+        });
+
+        setDebugSquareStyles(newStyles);
+      })
+      .catch((error) => {
+        console.error("Debug API error:", error);
+        setDebugSquareStyles({});
+      });
+  }, [debugEnabled, debugHost, chessPosition]);
 
   const isBotThinkingRef = useRef(false);
 

@@ -72,64 +72,80 @@ paths:
                   value:
                     error: "Engine error: failed to calculate move"
 
-  /debug:
-    get:
-      summary: Get the bitboard for a given square
-      description: >
-        Returns the 64-bit unsigned integer (bitboard) with only the bit
-        corresponding to the given square set. Useful for verifying square
-        indexing and bitboard generation. Squares are in standard algebraic
-        notation (e.g. `e6`), mapped to bit indices 0–63 (a1=0 … h8=63).
-      operationId: getDebugBitboard
-      parameters:
-        - name: sq
-          in: query
-          required: true
-          description: >
-            A chess square in algebraic notation. File must be `a`–`h` and rank
-            must be `1`–`8` (e.g. `e6`, `a1`, `h8`).
-          schema:
-            type: string
-            pattern: "^[a-h][1-8]$"
-          example: "e6"
-      responses:
-        "200":
-          description: The bitboard for the requested square.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/DebugBitboardResponse"
-              examples:
-                e6:
-                  summary: Bitboard for e6
-                  value:
-                    square: "e6"
-                    bitboard: 1099511627776
-                a1:
-                  summary: Bitboard for a1 (bit 0)
-                  value:
-                    square: "a1"
-                    bitboard: 1
-                h8:
-                  summary: Bitboard for h8 (bit 63)
-                  value:
-                    square: "h8"
-                    bitboard: 9223372036854775808
-        "400":
-          description: The square parameter is missing or not valid algebraic notation.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-              examples:
-                missing_sq:
-                  summary: No square provided
-                  value:
-                    error: "Missing required query parameter: sq"
-                invalid_sq:
-                  summary: Malformed square string
-                  value:
-                    error: "Invalid square: must be a file (a-h) followed by a rank (1-8), e.g. e6"
+   /debug:
+     get:
+       summary: Get debug bitboard information for a position and optional square
+       description: >
+         Accepts a FEN string representing the current board position and an optional
+         square in algebraic notation. Returns a 64-bit unsigned integer (bitboard)
+         representing the result of the debug query. If a square is provided, returns
+         information relevant to that square in the given position. If no square is
+         provided, returns information about the entire position (e.g. all pieces of
+         a certain type, legal moves, attacked squares, etc.). Useful for debugging
+         and visualization of engine analysis.
+       operationId: getDebugBitboard
+       parameters:
+         - name: fen
+           in: query
+           required: true
+           description: >
+             A complete FEN string representing the board position. Must include
+             all 6 fields: piece placement, active color, castling rights, en
+             passant target, halfmove clock, and fullmove number.
+           schema:
+             type: string
+           example: "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 1"
+         - name: sq
+           in: query
+           required: false
+           description: >
+             An optional chess square in algebraic notation. File must be `a`–`h` and rank
+             must be `1`–`8` (e.g. `e6`, `a1`, `h8`). When provided, the debug endpoint
+             returns bitboard information specific to that square. When omitted, returns
+             general position information.
+           schema:
+             type: string
+             pattern: "^[a-h][1-8]$"
+           example: "e6"
+       responses:
+         "200":
+           description: The debug bitboard as a plain integer string.
+           content:
+             text/plain:
+               schema:
+                 type: integer
+                 format: uint64
+                 description: >
+                   A 64-bit unsigned integer representing the debug bitboard result.
+                   The exact meaning depends on the implementation (e.g. squares a piece
+                   can move to, squares attacked by a piece, all pieces of a color, etc.).
+                   Bits are indexed from 0–63 where a1=0, h1=7, a8=56, h8=63.
+               examples:
+                 with_square:
+                   summary: Debug bitboard with specific square query
+                   value: "1099511627776"
+                 full_position:
+                   summary: Debug bitboard for entire position
+                   value: "65535"
+         "400":
+           description: The FEN parameter is missing or invalid, or the square parameter is malformed.
+           content:
+             application/json:
+               schema:
+                 $ref: "#/components/schemas/ErrorResponse"
+               examples:
+                 missing_fen:
+                   summary: No FEN provided
+                   value:
+                     error: "Missing required query parameter: fen"
+                 invalid_fen:
+                   summary: Malformed FEN string
+                   value:
+                     error: "Invalid FEN: piece placement must contain exactly 8 ranks"
+                 invalid_sq:
+                   summary: Malformed square string
+                   value:
+                     error: "Invalid square: must be a file (a-h) followed by a rank (1-8), e.g. e6"
 
 components:
   schemas:
@@ -149,32 +165,6 @@ components:
             - "e2e4"
             - "e7e8q"
             - "e1g1"
-
-    DebugBitboardResponse:
-      type: object
-      required:
-        - square
-        - bitboard
-      properties:
-        square:
-          type: string
-          description: The square that was queried, echoed back in algebraic notation.
-          examples:
-            - "e6"
-            - "a1"
-            - "h8"
-        bitboard:
-          type: integer
-          format: uint64
-          description: >
-            A 64-bit unsigned integer with exactly one bit set — the bit
-            corresponding to the requested square. Bit index is calculated as
-            `(rank - 1) * 8 + file`, where a=0 … h=7 and rank is 1-based
-            (a1=0, h1=7, a8=56, h8=63).
-          examples:
-            - 1099511627776
-            - 1
-            - 9223372036854775808
 
     ErrorResponse:
       type: object
