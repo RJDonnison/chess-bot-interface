@@ -27,6 +27,22 @@ import { type Host } from "./HostList";
 import EvalBar from "@/components/EvalBar";
 import { useStockfishEval } from "@/lib/useStockfishEval";
 
+function bitboardToSquares(bitboard: bigint): Square[] {
+  const squares: Square[] = [];
+  const files = ["a", "b", "c", "d", "e", "f", "g", "h"];
+  const ranks = ["1", "2", "3", "4", "5", "6", "7", "8"];
+
+  for (let i = 0; i < 64; i++) {
+    if ((bitboard & (BigInt(1) << BigInt(i))) !== BigInt(0)) {
+      const file = files[i % 8];
+      const rank = ranks[Math.floor(i / 8)];
+      squares.push(`${file}${rank}` as Square);
+    }
+  }
+
+  return squares;
+}
+
 type Props = {
   onColorsAssigned: (
     player1: "White" | "Black",
@@ -41,6 +57,8 @@ type Props = {
   timeout: number;
   stockfishDepth: number;
   botDelay: number;
+  debugEnabled?: boolean;
+  debugHost?: Host;
 };
 
 type Color = "White" | "Black";
@@ -120,6 +138,8 @@ export default function ChessGame({
   timeout,
   stockfishDepth,
   botDelay,
+  debugEnabled = false,
+  debugHost,
 }: Props) {
   const [gameOverOpen, setGameOverOpen] = useState(false);
   const [gameOverMessage, setGameOverMessage] = useState({
@@ -138,6 +158,9 @@ export default function ChessGame({
     from: string;
     to: string;
   } | null>(null);
+  const [debugSquareStyles, setDebugSquareStyles] = useState<
+    Record<string, React.CSSProperties>
+  >({});
 
   const chessGameRef = useRef<Chess | null>(null);
   if (chessGameRef.current === null) {
@@ -244,6 +267,33 @@ export default function ChessGame({
     square: Square,
     piece?: string | null,
   ): void {
+    if (debugEnabled && debugHost) {
+      const url = `${debugHost.url}/debug?sq=${square}`;
+      fetch(url)
+        .then((res) => res.text())
+        .then((text) => {
+          const bitboard = BigInt(text);
+          const debugSquares = bitboardToSquares(bitboard);
+
+          const newStyles: Record<string, React.CSSProperties> = {};
+          debugSquares.forEach((sq) => {
+            newStyles[sq] = {
+              background: "rgba(220, 38, 38, 0.4)",
+            };
+          });
+          newStyles[square] = {
+            background: "rgba(59, 130, 246, 0.4)",
+          };
+
+          setDebugSquareStyles(newStyles);
+        })
+        .catch((error) => {
+          console.error("Debug API error:", error);
+          toast.error("Failed to fetch debug info");
+        });
+      return;
+    }
+
     const currentTurnHost = getCurrentTurnHost();
     const isHumanTurn = currentTurnHost?.id === "human";
 
@@ -453,7 +503,7 @@ export default function ChessGame({
     onPieceDrag,
     canDragPiece,
     onSquareClick,
-    squareStyles: optionSquares,
+    squareStyles: debugEnabled ? debugSquareStyles : optionSquares,
   };
 
   return (

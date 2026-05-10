@@ -6,7 +6,6 @@ info:
     engine's best move in UCI notation. A single endpoint serves
     both colors of any game with no session tracking required.
   version: 1.0.0
-
 paths:
   /bestmove:
     get:
@@ -26,7 +25,6 @@ paths:
           schema:
             type: string
           example: "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 1"
-
       responses:
         "200":
           description: The engine calculated a best move.
@@ -47,7 +45,6 @@ paths:
                   summary: Pawn promotion
                   value:
                     bestmove: "e7e8q"
-
         "400":
           description: The FEN string is missing or invalid.
           content:
@@ -63,7 +60,6 @@ paths:
                   summary: Malformed FEN string
                   value:
                     error: "Invalid FEN: piece placement must contain exactly 8 ranks"
-
         "500":
           description: The engine encountered an internal error
           content:
@@ -75,6 +71,65 @@ paths:
                   summary: Engine failed to return a move
                   value:
                     error: "Engine error: failed to calculate move"
+
+  /debug:
+    get:
+      summary: Get the bitboard for a given square
+      description: >
+        Returns the 64-bit unsigned integer (bitboard) with only the bit
+        corresponding to the given square set. Useful for verifying square
+        indexing and bitboard generation. Squares are in standard algebraic
+        notation (e.g. `e6`), mapped to bit indices 0–63 (a1=0 … h8=63).
+      operationId: getDebugBitboard
+      parameters:
+        - name: sq
+          in: query
+          required: true
+          description: >
+            A chess square in algebraic notation. File must be `a`–`h` and rank
+            must be `1`–`8` (e.g. `e6`, `a1`, `h8`).
+          schema:
+            type: string
+            pattern: "^[a-h][1-8]$"
+          example: "e6"
+      responses:
+        "200":
+          description: The bitboard for the requested square.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DebugBitboardResponse"
+              examples:
+                e6:
+                  summary: Bitboard for e6
+                  value:
+                    square: "e6"
+                    bitboard: 1099511627776
+                a1:
+                  summary: Bitboard for a1 (bit 0)
+                  value:
+                    square: "a1"
+                    bitboard: 1
+                h8:
+                  summary: Bitboard for h8 (bit 63)
+                  value:
+                    square: "h8"
+                    bitboard: 9223372036854775808
+        "400":
+          description: The square parameter is missing or not valid algebraic notation.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              examples:
+                missing_sq:
+                  summary: No square provided
+                  value:
+                    error: "Missing required query parameter: sq"
+                invalid_sq:
+                  summary: Malformed square string
+                  value:
+                    error: "Invalid square: must be a file (a-h) followed by a rank (1-8), e.g. e6"
 
 components:
   schemas:
@@ -95,6 +150,32 @@ components:
             - "e7e8q"
             - "e1g1"
 
+    DebugBitboardResponse:
+      type: object
+      required:
+        - square
+        - bitboard
+      properties:
+        square:
+          type: string
+          description: The square that was queried, echoed back in algebraic notation.
+          examples:
+            - "e6"
+            - "a1"
+            - "h8"
+        bitboard:
+          type: integer
+          format: uint64
+          description: >
+            A 64-bit unsigned integer with exactly one bit set — the bit
+            corresponding to the requested square. Bit index is calculated as
+            `(rank - 1) * 8 + file`, where a=0 … h=7 and rank is 1-based
+            (a1=0, h1=7, a8=56, h8=63).
+          examples:
+            - 1099511627776
+            - 1
+            - 9223372036854775808
+
     ErrorResponse:
       type: object
       required:
@@ -105,3 +186,4 @@ components:
           description: A human-readable description of what went wrong.
           examples:
             - "Invalid FEN: piece placement must contain exactly 8 ranks"
+            - "Invalid square: must be a file (a-h) followed by a rank (1-8), e.g. e6"
