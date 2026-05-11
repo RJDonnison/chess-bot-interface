@@ -6,7 +6,7 @@ import {
 } from "react-chessboard";
 import { Button } from "@/components/ui/button";
 import { Dot, Loader } from "lucide-react";
-import { useRef, useState, useEffect } from "react";
+import { useRef, useState, useEffect, forwardRef, useImperativeHandle } from "react";
 import { Chess, type Square } from "chess.js";
 import {
   Dialog,
@@ -43,6 +43,10 @@ function bitboardToSquares(bitboard: bigint): Square[] {
   return squares;
 }
 
+export interface ChessGameRef {
+  manualDebug: () => void;
+}
+
 type Props = {
   onColorsAssigned: (
     player1: "White" | "Black",
@@ -57,7 +61,8 @@ type Props = {
   timeout: number;
   stockfishDepth: number;
   botDelay: number;
-  debugEnabled?: boolean;
+  debugGameEnabled?: boolean;
+  debugClickEnabled?: boolean;
   debugHost?: Host;
 };
 
@@ -127,20 +132,24 @@ function initChessGame(): Chess {
   return game;
 }
 
-export default function ChessGame({
-  onColorsAssigned,
-  humanColor,
-  player1HostId,
-  player2HostId,
-  player1Color,
-  player2Color,
-  hosts,
-  timeout,
-  stockfishDepth,
-  botDelay,
-  debugEnabled = false,
-  debugHost,
-}: Props) {
+export default forwardRef<ChessGameRef, Props>(function ChessGame(
+  {
+    onColorsAssigned,
+    humanColor,
+    player1HostId,
+    player2HostId,
+    player1Color,
+    player2Color,
+    hosts,
+    timeout,
+    stockfishDepth,
+    botDelay,
+    debugGameEnabled = false,
+    debugClickEnabled = false,
+    debugHost,
+  }: Props,
+  ref,
+) {
   const [gameOverOpen, setGameOverOpen] = useState(false);
   const [gameOverMessage, setGameOverMessage] = useState({
     title: "",
@@ -175,6 +184,37 @@ export default function ChessGame({
   const turn = (): Color => (chessGame.turn() === "w" ? "White" : "Black");
 
   const evalResult = useStockfishEval(chessPosition, turn() === "White", 15);
+
+  useImperativeHandle(ref, () => ({
+    manualDebug: async () => {
+      if (!debugHost) {
+        toast.error("No debug host selected");
+        return;
+      }
+
+      setDebugSquareStyles({});
+      try {
+        const bitboard = await getDebugBitboard(debugHost, chessPosition);
+        if (bitboard === null) {
+          toast.error("Failed to fetch debug info");
+          return;
+        }
+
+        const debugSquares = bitboardToSquares(bitboard);
+        const newStyles: Record<string, React.CSSProperties> = {};
+        debugSquares.forEach((sq) => {
+          newStyles[sq] = {
+            background: "rgba(220, 38, 38, 0.4)",
+          };
+        });
+
+        setDebugSquareStyles(newStyles);
+      } catch (error) {
+        console.error("Debug API error:", error);
+        toast.error("Failed to fetch debug info");
+      }
+    },
+  }));
 
   function saveMove() {
     saveGameToLocalStorage({
@@ -267,7 +307,7 @@ export default function ChessGame({
     square: Square,
     piece?: string | null,
   ): void {
-    if (debugEnabled && debugHost) {
+    if (debugClickEnabled && debugHost) {
       setDebugSquareStyles({});
       getDebugBitboard(debugHost, chessPosition, square)
         .then((bitboard) => {
@@ -376,7 +416,7 @@ export default function ChessGame({
   }
 
   useEffect(() => {
-    if (!debugEnabled || !debugHost) {
+    if (!debugGameEnabled || !debugHost) {
       setDebugSquareStyles({});
       return;
     }
@@ -403,7 +443,7 @@ export default function ChessGame({
         console.error("Debug API error:", error);
         setDebugSquareStyles({});
       });
-  }, [debugEnabled, debugHost, chessPosition]);
+  }, [debugGameEnabled, debugHost, chessPosition]);
 
   const isBotThinkingRef = useRef(false);
 
@@ -533,7 +573,8 @@ export default function ChessGame({
     onPieceDrag,
     canDragPiece,
     onSquareClick,
-    squareStyles: debugEnabled ? debugSquareStyles : optionSquares,
+    squareStyles:
+      debugGameEnabled || debugClickEnabled ? debugSquareStyles : optionSquares,
   };
 
   return (
@@ -650,4 +691,4 @@ export default function ChessGame({
       </Dialog>
     </>
   );
-}
+});
