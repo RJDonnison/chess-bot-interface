@@ -1,4 +1,5 @@
 import { type Host } from "../components/HostList";
+import { type Square } from "chess.js";
 
 let stockfishWorker: Worker | null = null;
 
@@ -96,4 +97,31 @@ export async function getBotMove(
   }
 
   return await getExternalBotMove(fen, host, timeoutSeconds);
+}
+
+export async function getDebugBitboard(
+  host: Host,
+  fen: string,
+  square?: Square,
+): Promise<bigint | null> {
+  try {
+    const url = new URL(`${host.url}/debug`);
+    url.searchParams.append("fen", fen);
+    if (square) {
+      url.searchParams.append("sq", square);
+    }
+    const response = await fetch(url.toString(), {
+      method: "GET",
+      cache: "no-store",
+    });
+    if (!response.ok) {
+      console.error(`Debug API error: ${response.status}`);
+      return null;
+    }
+    const text = await response.text();
+    return BigInt(text);
+  } catch (error) {
+    console.error("Error calling debug API:", error);
+    return null;
+  }
 }

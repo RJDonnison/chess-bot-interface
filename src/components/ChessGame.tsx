@@ -6,7 +6,7 @@ import {
 } from "react-chessboard";
 import { Button } from "@/components/ui/button";
 import { Dot, Loader } from "lucide-react";
-import { useRef, useState, useEffect } from "react";
+import { useRef, useState, useEffect, forwardRef, useImperativeHandle } from "react";
 import { Chess, type Square } from "chess.js";
 import {
   Dialog,
@@ -22,10 +22,30 @@ import {
   PopoverContent,
 } from "@/components/ui/popover";
 import { toast } from "sonner";
-import { getBotMove } from "@/api/bot";
+import { getBotMove, getDebugBitboard } from "@/api/bot";
 import { type Host } from "./HostList";
 import EvalBar from "@/components/EvalBar";
 import { useStockfishEval } from "@/lib/useStockfishEval";
+
+function bitboardToSquares(bitboard: bigint): Square[] {
+  const squares: Square[] = [];
+  const files = ["a", "b", "c", "d", "e", "f", "g", "h"];
+  const ranks = ["1", "2", "3", "4", "5", "6", "7", "8"];
+
+  for (let i = 0; i < 64; i++) {
+    if ((bitboard & (BigInt(1) << BigInt(i))) !== BigInt(0)) {
+      const file = files[i % 8];
+      const rank = ranks[Math.floor(i / 8)];
+      squares.push(`${file}${rank}` as Square);
+    }
+  }
+
+  return squares;
+}
+
+export interface ChessGameRef {
+  manualDebug: () => void;
+}
 
 type Props = {
   onColorsAssigned: (
@@ -41,6 +61,9 @@ type Props = {
   timeout: number;
   stockfishDepth: number;
   botDelay: number;
+  debugGameEnabled?: boolean;
+  debugClickEnabled?: boolean;
+  debugHost?: Host;
 };
 
 type Color = "White" | "Black";
@@ -109,18 +132,24 @@ function initChessGame(): Chess {
   return game;
 }
 
-export default function ChessGame({
-  onColorsAssigned,
-  humanColor,
-  player1HostId,
-  player2HostId,
-  player1Color,
-  player2Color,
-  hosts,
-  timeout,
-  stockfishDepth,
-  botDelay,
-}: Props) {
+export default forwardRef<ChessGameRef, Props>(function ChessGame(
+  {
+    onColorsAssigned,
+    humanColor,
+    player1HostId,
+    player2HostId,
+    player1Color,
+    player2Color,
+    hosts,
+    timeout,
+    stockfishDepth,
+    botDelay,
+    debugGameEnabled = false,
+    debugClickEnabled = false,
+    debugHost,
+  }: Props,
+  ref,
+) {
   const [gameOverOpen, setGameOverOpen] = useState(false);
   const [gameOverMessage, setGameOverMessage] = useState({
     title: "",
@@ -138,6 +167,9 @@ export default function ChessGame({
     from: string;
     to: string;
   } | null>(null);
+  const [debugSquareStyles, setDebugSquareStyles] = useState<
+    Record<string, React.CSSProperties>
+  >({});
 
   const chessGameRef = useRef<Chess | null>(null);
   if (chessGameRef.current === null) {
@@ -152,6 +184,37 @@ export default function ChessGame({
   const turn = (): Color => (chessGame.turn() === "w" ? "White" : "Black");
 
   const evalResult = useStockfishEval(chessPosition, turn() === "White", 15);
+
+  useImperativeHandle(ref, () => ({
+    manualDebug: async () => {
+      if (!debugHost) {
+        toast.error("No debug host selected");
+        return;
+      }
+
+      setDebugSquareStyles({});
+      try {
+        const bitboard = await getDebugBitboard(debugHost, chessPosition);
+        if (bitboard === null) {
+          toast.error("Failed to fetch debug info");
+          return;
+        }
+
+        const debugSquares = bitboardToSquares(bitboard);
+        const newStyles: Record<string, React.CSSProperties> = {};
+        debugSquares.forEach((sq) => {
+          newStyles[sq] = {
+            background: "rgba(220, 38, 38, 0.4)",
+          };
+        });
+
+        setDebugSquareStyles(newStyles);
+      } catch (error) {
+        console.error("Debug API error:", error);
+        toast.error("Failed to fetch debug info");
+      }
+    },
+  }));
 
   function saveMove() {
     saveGameToLocalStorage({
@@ -244,6 +307,33 @@ export default function ChessGame({
     square: Square,
     piece?: string | null,
   ): void {
+    if (debugClickEnabled && debugHost) {
+      setDebugSquareStyles({});
+      getDebugBitboard(debugHost, chessPosition, square)
+        .then((bitboard) => {
+          if (bitboard === null) return;
+
+          const debugSquares = bitboardToSquares(bitboard);
+
+          const newStyles: Record<string, React.CSSProperties> = {};
+          debugSquares.forEach((sq) => {
+            newStyles[sq] = {
+              background: "rgba(220, 38, 38, 0.4)",
+            };
+          });
+          newStyles[square] = {
+            background: "rgba(59, 130, 246, 0.4)",
+          };
+
+          setDebugSquareStyles(newStyles);
+        })
+        .catch((error) => {
+          console.error("Debug API error:", error);
+          toast.error("Failed to fetch debug info");
+        });
+      return;
+    }
+
     const currentTurnHost = getCurrentTurnHost();
     const isHumanTurn = currentTurnHost?.id === "human";
 
@@ -324,6 +414,36 @@ export default function ChessGame({
           : player2HostId;
     return hosts.find((h) => h.id === hostId) || null;
   }
+
+  useEffect(() => {
+    if (!debugGameEnabled || !debugHost) {
+      setDebugSquareStyles({});
+      return;
+    }
+
+    setDebugSquareStyles({});
+    getDebugBitboard(debugHost, chessPosition)
+      .then((bitboard) => {
+        if (bitboard === null) {
+          setDebugSquareStyles({});
+          return;
+        }
+
+        const debugSquares = bitboardToSquares(bitboard);
+        const newStyles: Record<string, React.CSSProperties> = {};
+        debugSquares.forEach((sq) => {
+          newStyles[sq] = {
+            background: "rgba(220, 38, 38, 0.4)",
+          };
+        });
+
+        setDebugSquareStyles(newStyles);
+      })
+      .catch((error) => {
+        console.error("Debug API error:", error);
+        setDebugSquareStyles({});
+      });
+  }, [debugGameEnabled, debugHost, chessPosition]);
 
   const isBotThinkingRef = useRef(false);
 
@@ -453,7 +573,8 @@ export default function ChessGame({
     onPieceDrag,
     canDragPiece,
     onSquareClick,
-    squareStyles: optionSquares,
+    squareStyles:
+      debugGameEnabled || debugClickEnabled ? debugSquareStyles : optionSquares,
   };
 
   return (
@@ -570,4 +691,4 @@ export default function ChessGame({
       </Dialog>
     </>
   );
-}
+});
