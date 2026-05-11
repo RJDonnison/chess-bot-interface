@@ -16,6 +16,12 @@ export const DEFAULT_HOSTS: Host[] = [
     url: "https://chess.reujdon.dev/api/v1",
     isDefault: true,
   },
+  {
+    id: "v2",
+    name: "Basic Search",
+    url: "https://chess.reujdon.dev/api/v2",
+    isDefault: true,
+  },
 ];
 
 export function loadHostsFromLocalStorage(): Host[] {
