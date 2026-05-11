@@ -10,6 +10,12 @@ export type Host = {
 export const DEFAULT_HOSTS: Host[] = [
   { id: "human", name: "Human", url: "", isDefault: true },
   { id: "stockfish", name: "Stockfish", url: "", isDefault: true },
+  {
+    id: "v1",
+    name: "Random Moves",
+    url: "https://chess.reujdon.dev/api/v1",
+    isDefault: true,
+  },
 ];
 
 export function loadHostsFromLocalStorage(): Host[] {
@@ -39,7 +45,7 @@ function HostList({ hosts, setHosts }: Props) {
   return (
     <div className="flex flex-col gap-1">
       <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-1 mb-1">
-        Hosts
+        Bots
       </p>
 
       {hosts.map((host) => (
