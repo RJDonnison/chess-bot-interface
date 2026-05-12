@@ -26,6 +26,8 @@ import { Label } from "@/components/ui/label";
 import { Field, FieldGroup } from "@/components/ui/field";
 import { Button } from "./components/ui/button";
 import { useRef } from "react";
+import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { ChevronRight } from "lucide-react";
 
 // URL query helpers
 function getQueryParam(param: string): string | null {
@@ -174,143 +176,174 @@ export default function App() {
     });
   }
 
-  return (
-    <ResizablePanelGroup orientation="horizontal" className="min-h-screen">
-      <ResizablePanel defaultSize={15}>
-        <ScrollArea className="p-4">
-          <div className="flex flex-col gap-2 py-2">
-            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-1 mb-1">
-              Timeout (seconds)
-            </label>
-            <Input
-              type="number"
-              min={0}
-              placeholder="30"
-              value={timeout}
-              onChange={(e) => setTimeout(Number(e.target.value))}
-              className="w-full"
-            />
-          </div>
+  function Sidebar() {
+    return (
+      <ScrollArea className="h-full w-full p-4">
+        <div className="flex flex-col gap-2 py-2">
+          <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-1 mb-1">
+            Timeout (seconds)
+          </label>
+          <Input
+            type="number"
+            min={0}
+            placeholder="30"
+            value={timeout}
+            onChange={(e) => setTimeout(Number(e.target.value))}
+            className="w-full"
+          />
+        </div>
 
-          <div className="flex flex-col gap-2 py-2">
-            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-1 mb-1">
-              Stockfish Depth
-            </label>
-            <Input
-              type="number"
-              min={1}
-              max={20}
-              placeholder="12"
-              value={stockfishDepth}
-              onChange={(e) => setStockfishDepth(Number(e.target.value))}
-              className="w-full"
-            />
-          </div>
+        <div className="flex flex-col gap-2 py-2">
+          <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-1 mb-1">
+            Stockfish Depth
+          </label>
+          <Input
+            type="number"
+            min={1}
+            max={20}
+            placeholder="12"
+            value={stockfishDepth}
+            onChange={(e) => setStockfishDepth(Number(e.target.value))}
+            className="w-full"
+          />
+        </div>
 
-          <div className="flex flex-col gap-2 py-2 pb-4">
-            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-1 mb-1">
-              Bot Delay (seconds)
-            </label>
-            <Input
-              type="number"
-              min={0}
-              step={0.1}
-              placeholder="0"
-              value={botDelay}
-              onChange={(e) => setBotDelay(Number(e.target.value))}
-              className="w-full"
-            />
-          </div>
+        <div className="flex flex-col gap-2 py-2 pb-4">
+          <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-1 mb-1">
+            Bot Delay (seconds)
+          </label>
+          <Input
+            type="number"
+            min={0}
+            step={0.1}
+            placeholder="0"
+            value={botDelay}
+            onChange={(e) => setBotDelay(Number(e.target.value))}
+            className="w-full"
+          />
+        </div>
 
-          {customHosts.length > 0 && (
-            <div className="border-t py-4">
-              <div className="flex flex-col gap-2">
-                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-1 mb-1">
-                  Debug
-                </label>
-                <Select value={debugHostId} onValueChange={setDebugHostId}>
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Select debug host" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {customHosts.map((host) => (
-                      <SelectItem key={host.id} value={host.id}>
-                        {host.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <FieldGroup className="flex items-center gap-2">
-                  <Field orientation="horizontal">
-                    <Checkbox
-                      id="board-debug-checkbox"
-                      name="board-debug-checkbox"
-                      checked={debugGameEnabled}
-                      onCheckedChange={(checked) => setDebugGameEnabled(checked === true)}
-                    />
-                    <Label htmlFor="board-debug-checkbox">Debug Game</Label>
-                  </Field>
-                  <Field orientation="horizontal">
-                    <Checkbox
-                      id="click-debug-checkbox"
-                      name="click-debug-checkbox"
-                      checked={debugClickEnabled}
-                      onCheckedChange={(checked) => setDebugClickEnabled(checked === true)}
-                    />
-                    <Label htmlFor="click-debug-checkbox">Debug Click</Label>
-                  </Field>
-                  <Button onClick={boardDebug}>Manual Debug</Button>
-                </FieldGroup>
-              </div>
+        {customHosts.length > 0 && (
+          <div className="border-t py-4">
+            <div className="flex flex-col gap-2">
+              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-1 mb-1">
+                Debug
+              </label>
+              <Select value={debugHostId} onValueChange={setDebugHostId}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Select debug host" />
+                </SelectTrigger>
+                <SelectContent>
+                  {customHosts.map((host) => (
+                    <SelectItem key={host.id} value={host.id}>
+                      {host.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <FieldGroup className="flex items-center gap-2">
+                <Field orientation="horizontal">
+                  <Checkbox
+                    id="board-debug-checkbox"
+                    name="board-debug-checkbox"
+                    checked={debugGameEnabled}
+                    onCheckedChange={(checked) =>
+                      setDebugGameEnabled(checked === true)
+                    }
+                  />
+                  <Label htmlFor="board-debug-checkbox">Debug Game</Label>
+                </Field>
+                <Field orientation="horizontal">
+                  <Checkbox
+                    id="click-debug-checkbox"
+                    name="click-debug-checkbox"
+                    checked={debugClickEnabled}
+                    onCheckedChange={(checked) =>
+                      setDebugClickEnabled(checked === true)
+                    }
+                  />
+                  <Label htmlFor="click-debug-checkbox">Debug Click</Label>
+                </Field>
+                <Button onClick={boardDebug}>Manual Debug</Button>
+              </FieldGroup>
             </div>
-          )}
-
-          <div className="border-t py-4">
-            <Players
-              hosts={hosts}
-              player1HostId={player1HostId}
-              player2HostId={player2HostId}
-              onPlayer1Change={setPlayer1HostId}
-              onPlayer2Change={setPlayer2HostId}
-              player1Color={player1Color}
-              player2Color={player2Color}
-            />
           </div>
+        )}
 
-          <div className="border-t py-4">
-            <HostList hosts={hosts} setHosts={handleSetHosts} />
-          </div>
-        </ScrollArea>
-      </ResizablePanel>
+        <div className="border-t py-4">
+          <Players
+            hosts={hosts}
+            player1HostId={player1HostId}
+            player2HostId={player2HostId}
+            onPlayer1Change={setPlayer1HostId}
+            onPlayer2Change={setPlayer2HostId}
+            player1Color={player1Color}
+            player2Color={player2Color}
+          />
+        </div>
 
-      <ResizableHandle withHandle />
+        <div className="border-t py-4">
+          <HostList hosts={hosts} setHosts={handleSetHosts} />
+        </div>
+      </ScrollArea>
+    );
+  }
 
-      <ResizablePanel defaultSize={75}>
-        <ChessGame
-          ref={chessGameRef}
-          onColorsAssigned={handleColorsAssigned}
-          humanColor={
-            player1HostId === "human" && player2HostId === "human"
-              ? "White"
-              : player1HostId === "human"
-                ? player1Color || undefined
-                : player2HostId === "human"
-                  ? player2Color || undefined
-                  : undefined
-          }
-          player1HostId={player1HostId}
-          player2HostId={player2HostId}
-          player1Color={player1Color}
-          player2Color={player2Color}
-          hosts={hosts}
-          timeout={timeout}
-          stockfishDepth={stockfishDepth}
-          botDelay={botDelay}
-          debugGameEnabled={debugGameEnabled}
-          debugClickEnabled={debugClickEnabled}
-          debugHost={hosts.find((h) => h.id === debugHostId)}
-        />
-      </ResizablePanel>
-    </ResizablePanelGroup>
+  return (
+    <>
+      <div className="lg:hidden">
+        <Sheet>
+          <SheetTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="fixed left-2 top-2 z-50"
+            >
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </SheetTrigger>
+          <SheetContent side="left" className="w-64 p-0">
+            <Sidebar />
+          </SheetContent>
+        </Sheet>
+      </div>
+
+      <ResizablePanelGroup
+        orientation="horizontal"
+        className="max-h-screen min-h-screen"
+      >
+        <ResizablePanel defaultSize={15} className="hidden lg:flex">
+          <Sidebar />
+        </ResizablePanel>
+        <ResizableHandle withHandle className="hidden lg:flex" />
+
+        <ResizablePanel defaultSize={75}>
+          <ChessGame
+            ref={chessGameRef}
+            onColorsAssigned={handleColorsAssigned}
+            humanColor={
+              player1HostId === "human" && player2HostId === "human"
+                ? "White"
+                : player1HostId === "human"
+                  ? player1Color || undefined
+                  : player2HostId === "human"
+                    ? player2Color || undefined
+                    : undefined
+            }
+            player1HostId={player1HostId}
+            player2HostId={player2HostId}
+            player1Color={player1Color}
+            player2Color={player2Color}
+            hosts={hosts}
+            timeout={timeout}
+            stockfishDepth={stockfishDepth}
+            botDelay={botDelay}
+            debugGameEnabled={debugGameEnabled}
+            debugClickEnabled={debugClickEnabled}
+            debugHost={hosts.find((h) => h.id === debugHostId)}
+          />
+        </ResizablePanel>
+      </ResizablePanelGroup>
+    </>
   );
 }
