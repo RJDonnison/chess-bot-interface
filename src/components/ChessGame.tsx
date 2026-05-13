@@ -6,7 +6,13 @@ import {
 } from "react-chessboard";
 import { Button } from "@/components/ui/button";
 import { Dot, Loader } from "lucide-react";
-import { useRef, useState, useEffect, forwardRef, useImperativeHandle } from "react";
+import {
+  useRef,
+  useState,
+  useEffect,
+  forwardRef,
+  useImperativeHandle,
+} from "react";
 import { Chess, type Square } from "chess.js";
 import {
   Dialog,
@@ -579,7 +585,7 @@ export default forwardRef<ChessGameRef, Props>(function ChessGame(
 
   return (
     <>
-      <div className="min-h-screen flex flex-col items-center justify-center gap-6">
+      <div className="min-h-screen flex flex-col items-center justify-center gap-6 p-4">
         <div className="relative">
           <Button onClick={handleNewGameClick}>New Game</Button>
           <Popover open={confirmOpen} onOpenChange={setConfirmOpen}>
@@ -610,7 +616,7 @@ export default forwardRef<ChessGameRef, Props>(function ChessGame(
           </Popover>
         </div>
 
-        <div className="flex items-stretch gap-4">
+        <div className="flex items-stretch gap-4 w-full max-w-xl">
           <div className="w-8 shrink-0">
             <EvalBar
               evalPercent={evalResult.evalPercent}
@@ -620,7 +626,7 @@ export default forwardRef<ChessGameRef, Props>(function ChessGame(
               evalText={evalResult.evalText}
             />
           </div>
-          <div className="max-w-xl shrink-0">
+          <div className="flex-1 min-w-0 aspect-square">
             <Chessboard options={chessboardOptions} />
           </div>
         </div>
