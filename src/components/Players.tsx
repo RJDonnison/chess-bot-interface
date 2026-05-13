@@ -8,13 +8,7 @@ import {
 import { Field, FieldLabel } from "@/components/ui/field";
 import type { Host } from "./HostList";
 import { Dot } from "lucide-react";
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible";
-import { ChevronDown } from "lucide-react";
-import { Button } from "./ui/button";
+import { SidebarSection } from "./SidebarSection";
 
 type Props = {
   hosts: Host[];
@@ -36,16 +30,8 @@ export default function Players({
   player2Color,
 }: Props) {
   return (
-    <Collapsible>
-      <CollapsibleTrigger className="flex items-center justify-between w-full px-1 mb-1 group border-b pb-2">
-        <p className="text-xs font-semibold uppercase tracking-wider text-left">
-          Players
-        </p>
-        <Button variant="ghost" size="icon" className="size-8 cursor-pointer">
-          <ChevronDown className="h-3 w-3 text-muted-foreground  transition-transform duration-200 group-data-[state=open]:rotate-180" />
-        </Button>
-      </CollapsibleTrigger>
-      <CollapsibleContent className="flex flex-col gap-2 pt-2 border-b pb-4">
+    <SidebarSection title="Players">
+      <div className="flex flex-col gap-2">
         {(
           [
             {
@@ -83,7 +69,7 @@ export default function Players({
             </Select>
           </Field>
         ))}
-      </CollapsibleContent>
-    </Collapsible>
+      </div>
+    </SidebarSection>
   );
 }

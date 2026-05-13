@@ -2,12 +2,7 @@ import { useState } from "react";
 import { Input } from "./ui/input";
 import { Button } from "./ui/button";
 import { Plus, X, Check, Pencil, Trash2 } from "lucide-react";
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible";
-import { ChevronDown } from "lucide-react";
+import { SidebarSection } from "./SidebarSection";
 
 const HOSTS_STORAGE_KEY = "chess-hosts";
 
@@ -129,143 +124,46 @@ function HostList({ hosts, setHosts }: Props) {
   }
 
   return (
-    <Collapsible>
-      <CollapsibleTrigger className="flex items-center justify-between w-full px-1 py-2 group">
-        <p className="text-xs font-semibold uppercase tracking-wider text-left">
-          Hosts
-        </p>
-        <Button variant="ghost" size="icon" className="size-8 cursor-pointer">
-          <ChevronDown className="h-3 w-3 text-muted-foreground  transition-transform duration-200 group-data-[state=open]:rotate-180" />
-        </Button>
-      </CollapsibleTrigger>
-      <CollapsibleContent>
-        {hosts.map((host) =>
-          editingId === host.id ? (
-            <div
-              key={host.id}
-              className="flex flex-col gap-1 p-2 rounded-md border bg-muted/30"
-            >
-              <div className="flex flex-col gap-0.5">
-                <Input
-                  value={editName}
-                  onChange={(e) => {
-                    setEditName(e.target.value);
-                    if (editErrors.name)
-                      setEditErrors((p) => ({ ...p, name: undefined }));
-                  }}
-                  placeholder="Name"
-                  className={`h-7 text-sm ${editErrors.name ? "border-destructive focus-visible:ring-destructive" : ""}`}
-                  autoFocus
-                />
-                {editErrors.name && (
-                  <p className="text-xs text-destructive px-0.5">
-                    {editErrors.name}
-                  </p>
-                )}
-              </div>
-              <div className="flex flex-col gap-0.5">
-                <Input
-                  value={editUrl}
-                  onChange={(e) => {
-                    setEditUrl(e.target.value);
-                    if (editErrors.url)
-                      setEditErrors((p) => ({ ...p, url: undefined }));
-                  }}
-                  placeholder="URL"
-                  className={`h-7 text-sm ${editErrors.url ? "border-destructive focus-visible:ring-destructive" : ""}`}
-                  onKeyDown={(e) => e.key === "Enter" && saveEdit()}
-                />
-                {editErrors.url && (
-                  <p className="text-xs text-destructive px-0.5">
-                    {editErrors.url}
-                  </p>
-                )}
-              </div>
-              <div className="flex gap-1 mt-1">
-                <Button
-                  size="sm"
-                  className="h-7 flex-1 text-xs"
-                  onClick={saveEdit}
-                >
-                  <Check className="w-3 h-3 mr-1" /> Save
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="h-7 flex-1 text-xs"
-                  onClick={cancelEdit}
-                >
-                  <X className="w-3 h-3 mr-1" /> Cancel
-                </Button>
-              </div>
-            </div>
-          ) : (
-            <div
-              key={host.id}
-              className={`flex items-center justify-between px-2 py-1.5 rounded-md ${!host.isDefault ? "hover:bg-muted/50 group" : ""}`}
-            >
-              <span className="text-sm text-left truncate flex-1">
-                {host.name}
-              </span>
-              {!host.isDefault && (
-                <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    className="h-6 w-6 cursor-pointer"
-                    onClick={() => startEdit(host)}
-                  >
-                    <Pencil className="w-3 h-3" />
-                  </Button>
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    className="h-6 w-6 text-destructive hover:text-destructive cursor-pointer"
-                    onClick={() => deleteHost(host.id)}
-                  >
-                    <Trash2 className="w-3 h-3" />
-                  </Button>
-                </div>
-              )}
-            </div>
-          ),
-        )}
-
-        {addingNew ? (
-          <div className="flex flex-col gap-1 p-2 rounded-md border bg-muted/30 mt-1">
+    <SidebarSection title="Hosts">
+      {hosts.map((host) =>
+        editingId === host.id ? (
+          <div
+            key={host.id}
+            className="flex flex-col gap-2 rounded-md border bg-muted/30"
+          >
             <div className="flex flex-col gap-0.5">
               <Input
-                value={newName}
+                value={editName}
                 onChange={(e) => {
-                  setNewName(e.target.value);
-                  if (addErrors.name)
-                    setAddErrors((p) => ({ ...p, name: undefined }));
+                  setEditName(e.target.value);
+                  if (editErrors.name)
+                    setEditErrors((p) => ({ ...p, name: undefined }));
                 }}
                 placeholder="Name"
-                className={`h-7 text-sm ${addErrors.name ? "border-destructive focus-visible:ring-destructive" : ""}`}
+                className={`h-7 text-sm ${editErrors.name ? "border-destructive focus-visible:ring-destructive" : ""}`}
                 autoFocus
               />
-              {addErrors.name && (
+              {editErrors.name && (
                 <p className="text-xs text-destructive px-0.5">
-                  {addErrors.name}
+                  {editErrors.name}
                 </p>
               )}
             </div>
             <div className="flex flex-col gap-0.5">
               <Input
-                value={newUrl}
+                value={editUrl}
                 onChange={(e) => {
-                  setNewUrl(e.target.value);
-                  if (addErrors.url)
-                    setAddErrors((p) => ({ ...p, url: undefined }));
+                  setEditUrl(e.target.value);
+                  if (editErrors.url)
+                    setEditErrors((p) => ({ ...p, url: undefined }));
                 }}
                 placeholder="URL"
-                className={`h-7 text-sm ${addErrors.url ? "border-destructive focus-visible:ring-destructive" : ""}`}
-                onKeyDown={(e) => e.key === "Enter" && addHost()}
+                className={`h-7 text-sm ${editErrors.url ? "border-destructive focus-visible:ring-destructive" : ""}`}
+                onKeyDown={(e) => e.key === "Enter" && saveEdit()}
               />
-              {addErrors.url && (
+              {editErrors.url && (
                 <p className="text-xs text-destructive px-0.5">
-                  {addErrors.url}
+                  {editErrors.url}
                 </p>
               )}
             </div>
@@ -273,32 +171,113 @@ function HostList({ hosts, setHosts }: Props) {
               <Button
                 size="sm"
                 className="h-7 flex-1 text-xs"
-                onClick={addHost}
+                onClick={saveEdit}
               >
-                <Check className="w-3 h-3 mr-1" /> Add
+                <Check className="w-3 h-3 mr-1" /> Save
               </Button>
               <Button
                 size="sm"
                 variant="outline"
                 className="h-7 flex-1 text-xs"
-                onClick={cancelAdd}
+                onClick={cancelEdit}
               >
                 <X className="w-3 h-3 mr-1" /> Cancel
               </Button>
             </div>
           </div>
         ) : (
-          <Button
-            variant="ghost"
-            size="sm"
-            className="w-full justify-start px-2 py-1.5 rounded-md text-sm text-left truncate flex-1 text-muted-foreground"
-            onClick={() => setAddingNew(true)}
+          <div
+            key={host.id}
+            className={`flex items-center justify-between px-2 py-1.5 rounded-md ${!host.isDefault ? "hover:bg-muted/50 group" : ""}`}
           >
-            <Plus className="w-3 h-3 mr-1" /> Add Host
-          </Button>
-        )}
-      </CollapsibleContent>
-    </Collapsible>
+            <span className="text-sm text-left truncate flex-1">
+              {host.name}
+            </span>
+            {!host.isDefault && (
+              <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  className="h-6 w-6 cursor-pointer"
+                  onClick={() => startEdit(host)}
+                >
+                  <Pencil className="w-3 h-3" />
+                </Button>
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  className="h-6 w-6 text-destructive hover:text-destructive cursor-pointer"
+                  onClick={() => deleteHost(host.id)}
+                >
+                  <Trash2 className="w-3 h-3" />
+                </Button>
+              </div>
+            )}
+          </div>
+        ),
+      )}
+
+      {addingNew ? (
+        <div className="flex flex-col gap-1 p-2 rounded-md border bg-muted/30 mt-1">
+          <div className="flex flex-col gap-0.5">
+            <Input
+              value={newName}
+              onChange={(e) => {
+                setNewName(e.target.value);
+                if (addErrors.name)
+                  setAddErrors((p) => ({ ...p, name: undefined }));
+              }}
+              placeholder="Name"
+              className={`h-7 text-sm ${addErrors.name ? "border-destructive focus-visible:ring-destructive" : ""}`}
+              autoFocus
+            />
+            {addErrors.name && (
+              <p className="text-xs text-destructive px-0.5">
+                {addErrors.name}
+              </p>
+            )}
+          </div>
+          <div className="flex flex-col gap-0.5">
+            <Input
+              value={newUrl}
+              onChange={(e) => {
+                setNewUrl(e.target.value);
+                if (addErrors.url)
+                  setAddErrors((p) => ({ ...p, url: undefined }));
+              }}
+              placeholder="URL"
+              className={`h-7 text-sm ${addErrors.url ? "border-destructive focus-visible:ring-destructive" : ""}`}
+              onKeyDown={(e) => e.key === "Enter" && addHost()}
+            />
+            {addErrors.url && (
+              <p className="text-xs text-destructive px-0.5">{addErrors.url}</p>
+            )}
+          </div>
+          <div className="flex gap-1 mt-1">
+            <Button size="sm" className="h-7 flex-1 text-xs" onClick={addHost}>
+              <Check className="w-3 h-3 mr-1" /> Add
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-7 flex-1 text-xs"
+              onClick={cancelAdd}
+            >
+              <X className="w-3 h-3 mr-1" /> Cancel
+            </Button>
+          </div>
+        </div>
+      ) : (
+        <Button
+          variant="ghost"
+          size="sm"
+          className="w-full justify-start px-2 py-1.5 rounded-md text-sm text-left truncate flex-1 text-muted-foreground"
+          onClick={() => setAddingNew(true)}
+        >
+          <Plus className="w-3 h-3 mr-1" /> Add Host
+        </Button>
+      )}
+    </SidebarSection>
   );
 }
 
