@@ -24,24 +24,6 @@ export const DEFAULT_HOSTS: Host[] = [
   },
 ];
 
-export function loadHostsFromLocalStorage(): Host[] {
-  try {
-    const raw = localStorage.getItem(HOSTS_STORAGE_KEY);
-    if (!raw) return DEFAULT_HOSTS;
-    const parsed = JSON.parse(raw);
-    if (!Array.isArray(parsed)) return DEFAULT_HOSTS;
-    return parsed;
-  } catch {
-    return DEFAULT_HOSTS;
-  }
-}
-
-export function saveHostsToLocalStorage(hosts: Host[]) {
-  try {
-    localStorage.setItem(HOSTS_STORAGE_KEY, JSON.stringify(hosts));
-  } catch {}
-}
-
 type Props = {
   hosts: Host[];
   setHosts: (hosts: Host[]) => void;

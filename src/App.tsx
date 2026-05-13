@@ -5,12 +5,7 @@ import {
   ResizablePanelGroup,
 } from "@/components/ui/resizable";
 import { Input } from "./components/ui/input";
-import HostList, {
-  type Host,
-  DEFAULT_HOSTS,
-  loadHostsFromLocalStorage,
-  saveHostsToLocalStorage,
-} from "./components/HostList";
+import HostList, { type Host, DEFAULT_HOSTS } from "./components/HostList";
 import Players from "./components/Players";
 import ChessGame from "./components/ChessGame";
 
@@ -75,7 +70,7 @@ export default function App() {
   const [botDelay, setBotDelayState] = useState<number>(
     botDelayQuery ? parseFloat(botDelayQuery) : 0,
   );
-  const [hosts, setHosts] = useState<Host[]>(loadHostsFromLocalStorage);
+  const [hosts, setHosts] = useState<Host[]>(DEFAULT_HOSTS);
   const [player1HostId, setPlayer1HostIdState] = useState<string>(
     savedPlayerConfig?.player1HostId || DEFAULT_HOSTS[0]!.id,
   );
@@ -127,7 +122,6 @@ export default function App() {
 
   function handleSetHosts(updated: Host[]) {
     setHosts(updated);
-    saveHostsToLocalStorage(updated);
   }
 
   function handleColorsAssigned(
