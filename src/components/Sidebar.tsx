@@ -293,7 +293,6 @@ export function Sidebar({
           </div>
         </div>
       </SidebarSection>
-      <HostList hosts={hosts} />
     </ScrollArea>
   );
 }
