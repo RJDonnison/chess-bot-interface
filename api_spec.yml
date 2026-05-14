@@ -6,7 +6,6 @@ info:
     engine's best move in UCI notation. A single endpoint serves
     both colors of any game with no session tracking required.
   version: 1.0.0
-
 paths:
   /bestmove:
     get:
@@ -26,7 +25,6 @@ paths:
           schema:
             type: string
           example: "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 1"
-
       responses:
         "200":
           description: The engine calculated a best move.
@@ -47,7 +45,6 @@ paths:
                   summary: Pawn promotion
                   value:
                     bestmove: "e7e8q"
-
         "400":
           description: The FEN string is missing or invalid.
           content:
@@ -63,7 +60,6 @@ paths:
                   summary: Malformed FEN string
                   value:
                     error: "Invalid FEN: piece placement must contain exactly 8 ranks"
-
         "500":
           description: The engine encountered an internal error
           content:
@@ -75,6 +71,81 @@ paths:
                   summary: Engine failed to return a move
                   value:
                     error: "Engine error: failed to calculate move"
+
+  /debug:
+    get:
+      summary: Get debug bitboard information for a position and optional square
+      description: >
+        Accepts a FEN string representing the current board position and an optional
+        square in algebraic notation. Returns a 64-bit unsigned integer (bitboard)
+        representing the result of the debug query. If a square is provided, returns
+        information relevant to that square in the given position. If no square is
+        provided, returns information about the entire position (e.g. all pieces of
+        a certain type, legal moves, attacked squares, etc.). Useful for debugging
+        and visualization of engine analysis.
+      operationId: getDebugBitboard
+      parameters:
+        - name: fen
+          in: query
+          required: true
+          description: >
+            A complete FEN string representing the board position. Must include
+            all 6 fields: piece placement, active color, castling rights, en
+            passant target, halfmove clock, and fullmove number.
+          schema:
+            type: string
+          example: "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 1"
+        - name: sq
+          in: query
+          required: false
+          description: >
+            An optional chess square in algebraic notation. File must be `a`–`h` and rank
+            must be `1`–`8` (e.g. `e6`, `a1`, `h8`). When provided, the debug endpoint
+            returns bitboard information specific to that square. When omitted, returns
+            general position information.
+          schema:
+            type: string
+            pattern: "^[a-h][1-8]$"
+          example: "e6"
+      responses:
+        "200":
+          description: The debug bitboard as a plain integer string.
+          content:
+            text/plain:
+              schema:
+                type: integer
+                format: uint64
+                description: >
+                  A 64-bit unsigned integer representing the debug bitboard result.
+                  The exact meaning depends on the implementation (e.g. squares a piece
+                  can move to, squares attacked by a piece, all pieces of a color, etc.).
+                  Bits are indexed from 0–63 where a1=0, h1=7, a8=56, h8=63.
+              examples:
+                with_square:
+                  summary: Debug bitboard with specific square query
+                  value: "1099511627776"
+                full_position:
+                  summary: Debug bitboard for entire position
+                  value: "65535"
+        "400":
+          description: The FEN parameter is missing or invalid, or the square parameter is malformed.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              examples:
+                missing_fen:
+                  summary: No FEN provided
+                  value:
+                    error: "Missing required query parameter: fen"
+                invalid_fen:
+                  summary: Malformed FEN string
+                  value:
+                    error: "Invalid FEN: piece placement must contain exactly 8 ranks"
+                invalid_sq:
+                  summary: Malformed square string
+                  value:
+                    error: "Invalid square: must be a file (a-h) followed by a rank (1-8), e.g. e6"
 
 components:
   schemas:
@@ -105,3 +176,4 @@ components:
           description: A human-readable description of what went wrong.
           examples:
             - "Invalid FEN: piece placement must contain exactly 8 ranks"
+            - "Invalid square: must be a file (a-h) followed by a rank (1-8), e.g. e6"

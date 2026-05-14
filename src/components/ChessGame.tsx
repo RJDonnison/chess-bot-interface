@@ -5,8 +5,14 @@ import {
   type PieceDropHandlerArgs,
 } from "react-chessboard";
 import { Button } from "@/components/ui/button";
-import { Dot, Loader } from "lucide-react";
-import { useRef, useState, useEffect } from "react";
+import { Dot, Loader, Undo2 } from "lucide-react";
+import {
+  useRef,
+  useState,
+  useEffect,
+  forwardRef,
+  useImperativeHandle,
+} from "react";
 import { Chess, type Square } from "chess.js";
 import {
   Dialog,
@@ -22,16 +28,39 @@ import {
   PopoverContent,
 } from "@/components/ui/popover";
 import { toast } from "sonner";
-import { getBotMove } from "@/api/bot";
+import { getBotMove, getDebugBitboard } from "@/api/bot";
 import { type Host } from "./HostList";
 import EvalBar from "@/components/EvalBar";
 import { useStockfishEval } from "@/lib/useStockfishEval";
+
+function bitboardToSquares(bitboard: bigint): Square[] {
+  const squares: Square[] = [];
+  const files = ["a", "b", "c", "d", "e", "f", "g", "h"];
+  const ranks = ["1", "2", "3", "4", "5", "6", "7", "8"];
+
+  for (let i = 0; i < 64; i++) {
+    if ((bitboard & (BigInt(1) << BigInt(i))) !== BigInt(0)) {
+      const file = files[i % 8];
+      const rank = ranks[Math.floor(i / 8)];
+      squares.push(`${file}${rank}` as Square);
+    }
+  }
+
+  return squares;
+}
+
+export interface ChessGameRef {
+  manualDebug: () => void;
+  newGame: (forcePlayer1Color?: "White" | "Black") => void;
+}
 
 type Props = {
   onColorsAssigned: (
     player1: "White" | "Black",
     player2: "White" | "Black",
   ) => void;
+  onGameOver?: (result: "White" | "Black" | "Draw") => void;
+  isBatchMode?: boolean;
   humanColor?: Color;
   player1HostId: string;
   player2HostId: string;
@@ -41,6 +70,9 @@ type Props = {
   timeout: number;
   stockfishDepth: number;
   botDelay: number;
+  debugGameEnabled?: boolean;
+  debugClickEnabled?: boolean;
+  debugHost?: Host;
 };
 
 type Color = "White" | "Black";
@@ -69,6 +101,13 @@ function getGameOverMessage(chess: Chess): {
   if (chess.isInsufficientMaterial())
     return { title: "Draw", description: "Insufficient material." };
   return { title: "Game Over", description: "The game has ended." };
+}
+
+function getGameResult(chess: Chess): "White" | "Black" | "Draw" {
+  if (chess.isCheckmate()) {
+    return chess.turn() === "w" ? "Black" : "White";
+  }
+  return "Draw";
 }
 
 const LOCAL_STORAGE_KEY = "chess-local-game";
@@ -109,18 +148,26 @@ function initChessGame(): Chess {
   return game;
 }
 
-export default function ChessGame({
-  onColorsAssigned,
-  humanColor,
-  player1HostId,
-  player2HostId,
-  player1Color,
-  player2Color,
-  hosts,
-  timeout,
-  stockfishDepth,
-  botDelay,
-}: Props) {
+export default forwardRef<ChessGameRef, Props>(function ChessGame(
+  {
+    onColorsAssigned,
+    onGameOver,
+    isBatchMode = false,
+    humanColor,
+    player1HostId,
+    player2HostId,
+    player1Color,
+    player2Color,
+    hosts,
+    timeout,
+    stockfishDepth,
+    botDelay,
+    debugGameEnabled = false,
+    debugClickEnabled = false,
+    debugHost,
+  }: Props,
+  ref,
+) {
   const [gameOverOpen, setGameOverOpen] = useState(false);
   const [gameOverMessage, setGameOverMessage] = useState({
     title: "",
@@ -138,6 +185,9 @@ export default function ChessGame({
     from: string;
     to: string;
   } | null>(null);
+  const [debugSquareStyles, setDebugSquareStyles] = useState<
+    Record<string, React.CSSProperties>
+  >({});
 
   const chessGameRef = useRef<Chess | null>(null);
   if (chessGameRef.current === null) {
@@ -147,11 +197,46 @@ export default function ChessGame({
 
   const storedTurn = loadGameFromLocalStorage()?.turn;
   const [turnNumber, setTurnNumber] = useState<number>(storedTurn || 1);
+  const [gameId, setGameId] = useState<number>(0);
   const [chessPosition, setChessPosition] = useState(chessGame.fen());
 
   const turn = (): Color => (chessGame.turn() === "w" ? "White" : "Black");
 
   const evalResult = useStockfishEval(chessPosition, turn() === "White", 15);
+
+  useImperativeHandle(ref, () => ({
+    manualDebug: async () => {
+      if (!debugHost) {
+        toast.error("No debug host selected");
+        return;
+      }
+
+      setDebugSquareStyles({});
+      try {
+        const bitboard = await getDebugBitboard(debugHost, chessPosition);
+        if (bitboard === null) {
+          toast.error("Failed to fetch debug info");
+          return;
+        }
+
+        const debugSquares = bitboardToSquares(bitboard);
+        const newStyles: Record<string, React.CSSProperties> = {};
+        debugSquares.forEach((sq) => {
+          newStyles[sq] = {
+            background: "rgba(220, 38, 38, 0.4)",
+          };
+        });
+
+        setDebugSquareStyles(newStyles);
+      } catch (error) {
+        console.error("Debug API error:", error);
+        toast.error("Failed to fetch debug info");
+      }
+    },
+    newGame: (forcePlayer1Color?: "White" | "Black") => {
+      newGame(forcePlayer1Color);
+    },
+  }));
 
   function saveMove() {
     saveGameToLocalStorage({
@@ -159,6 +244,17 @@ export default function ChessGame({
       turn: turnNumber + 1,
     });
     setTurnNumber(turnNumber + 1);
+  }
+
+  function handleGameOver() {
+    setGameOverMessage(getGameOverMessage(chessGame));
+    if (!isBatchMode) {
+      setGameOverOpen(true);
+    }
+    if (onGameOver) {
+      const result = getGameResult(chessGame);
+      onGameOver(result);
+    }
   }
 
   function getMoveOptions(square: Square) {
@@ -207,8 +303,7 @@ export default function ChessGame({
     setOptionSquares({});
     saveMove();
     if (chessGame.isGameOver()) {
-      setGameOverMessage(getGameOverMessage(chessGame));
-      setGameOverOpen(true);
+      handleGameOver();
     }
     return true;
   }
@@ -219,8 +314,7 @@ export default function ChessGame({
     setOptionSquares({});
     saveMove();
     if (chessGame.isGameOver()) {
-      setGameOverMessage(getGameOverMessage(chessGame));
-      setGameOverOpen(true);
+      handleGameOver();
     }
   }
 
@@ -244,6 +338,33 @@ export default function ChessGame({
     square: Square,
     piece?: string | null,
   ): void {
+    if (debugClickEnabled && debugHost) {
+      setDebugSquareStyles({});
+      getDebugBitboard(debugHost, chessPosition, square)
+        .then((bitboard) => {
+          if (bitboard === null) return;
+
+          const debugSquares = bitboardToSquares(bitboard);
+
+          const newStyles: Record<string, React.CSSProperties> = {};
+          debugSquares.forEach((sq) => {
+            newStyles[sq] = {
+              background: "rgba(220, 38, 38, 0.4)",
+            };
+          });
+          newStyles[square] = {
+            background: "rgba(59, 130, 246, 0.4)",
+          };
+
+          setDebugSquareStyles(newStyles);
+        })
+        .catch((error) => {
+          console.error("Debug API error:", error);
+          toast.error("Failed to fetch debug info");
+        });
+      return;
+    }
+
     const currentTurnHost = getCurrentTurnHost();
     const isHumanTurn = currentTurnHost?.id === "human";
 
@@ -325,6 +446,36 @@ export default function ChessGame({
     return hosts.find((h) => h.id === hostId) || null;
   }
 
+  useEffect(() => {
+    if (!debugGameEnabled || !debugHost) {
+      setDebugSquareStyles({});
+      return;
+    }
+
+    setDebugSquareStyles({});
+    getDebugBitboard(debugHost, chessPosition)
+      .then((bitboard) => {
+        if (bitboard === null) {
+          setDebugSquareStyles({});
+          return;
+        }
+
+        const debugSquares = bitboardToSquares(bitboard);
+        const newStyles: Record<string, React.CSSProperties> = {};
+        debugSquares.forEach((sq) => {
+          newStyles[sq] = {
+            background: "rgba(220, 38, 38, 0.4)",
+          };
+        });
+
+        setDebugSquareStyles(newStyles);
+      })
+      .catch((error) => {
+        console.error("Debug API error:", error);
+        setDebugSquareStyles({});
+      });
+  }, [debugGameEnabled, debugHost, chessPosition]);
+
   const isBotThinkingRef = useRef(false);
 
   useEffect(() => {
@@ -385,8 +536,7 @@ export default function ChessGame({
           setTurnNumber(turnNumber + 1);
 
           if (chessGame.isGameOver()) {
-            setGameOverMessage(getGameOverMessage(chessGame));
-            setGameOverOpen(true);
+            handleGameOver();
           }
         } catch (error) {
           setBotErrorDescription("The bot returned an invalid move");
@@ -414,12 +564,13 @@ export default function ChessGame({
     stockfishDepth,
     botDelay,
     turnNumber,
+    gameId,
     humanColor,
   ]);
 
-  function newGame() {
+  function newGame(forcePlayer1Color?: "White" | "Black") {
     chessGame.reset();
-    const newColor = randomColor();
+    const newColor = forcePlayer1Color || randomColor();
 
     onColorsAssigned(newColor, newColor === "White" ? "Black" : "White");
 
@@ -434,6 +585,7 @@ export default function ChessGame({
       turn: 1,
     });
     setTurnNumber(1);
+    setGameId((prev) => prev + 1);
   }
 
   function handleNewGameClick() {
@@ -442,6 +594,62 @@ export default function ChessGame({
     } else {
       setConfirmOpen(true);
     }
+  }
+
+  function handleUndo() {
+    if (!canUndo()) return;
+
+    const isP1Human = player1HostId === "human";
+    const isP2Human = player2HostId === "human";
+    
+    let undoCount = 1;
+
+    if (isP1Human && isP2Human) {
+      undoCount = 1;
+    } else {
+      const whiteIsHuman = (isP1Human && player1Color === "White") || (isP2Human && player2Color === "White");
+      const blackIsHuman = (isP1Human && player1Color === "Black") || (isP2Human && player2Color === "Black");
+      const isWhiteTurn = chessGame.turn() === "w";
+      
+      const isHumanTurn = (whiteIsHuman && isWhiteTurn) || (blackIsHuman && !isWhiteTurn);
+      
+      if (isHumanTurn) {
+        undoCount = 2;
+      } else {
+        undoCount = 1;
+      }
+    }
+
+    for (let i = 0; i < undoCount && chessGame.history().length > 0; i++) {
+      chessGame.undo();
+    }
+
+    setChessPosition(chessGame.fen());
+    setTurnNumber(Math.max(1, turnNumber - undoCount));
+    saveGameToLocalStorage({
+      fen: chessGame.fen(),
+      turn: Math.max(1, turnNumber - undoCount),
+    });
+  }
+
+  function canUndo(): boolean {
+    const isP1Human = player1HostId === "human";
+    const isP2Human = player2HostId === "human";
+    
+    if (!isP1Human && !isP2Human) return false;
+
+    const history = chessGame.history();
+    if (history.length === 0) return false;
+
+    if (isP1Human && isP2Human) return true;
+
+    const blackIsHuman = (isP1Human && player1Color === "Black") || (isP2Human && player2Color === "Black");
+
+    if (blackIsHuman && history.length < 2) {
+      return false;
+    }
+
+    return true;
   }
 
   const chessboardOptions = {
@@ -453,13 +661,14 @@ export default function ChessGame({
     onPieceDrag,
     canDragPiece,
     onSquareClick,
-    squareStyles: optionSquares,
+    squareStyles:
+      debugGameEnabled || debugClickEnabled ? debugSquareStyles : optionSquares,
   };
 
   return (
     <>
-      <div className="min-h-screen flex flex-col items-center justify-center gap-6">
-        <div className="relative">
+      <div className="min-h-screen flex flex-col items-center justify-center gap-6 p-4">
+        <div className="flex justify-between w-full max-w-xl gap-4">
           <Button onClick={handleNewGameClick}>New Game</Button>
           <Popover open={confirmOpen} onOpenChange={setConfirmOpen}>
             <PopoverAnchor />
@@ -472,7 +681,11 @@ export default function ChessGame({
                   </p>
                 </div>
                 <div className="flex gap-2">
-                  <Button size="sm" className="flex-1" onClick={newGame}>
+                  <Button
+                    size="sm"
+                    className="flex-1"
+                    onClick={() => newGame()}
+                  >
                     Confirm
                   </Button>
                   <Button
@@ -486,10 +699,17 @@ export default function ChessGame({
                 </div>
               </div>
             </PopoverContent>
+            <Button
+              onClick={handleUndo}
+              disabled={!canUndo()}
+              className="text-center flex items-center"
+            >
+              Undo Move
+            </Button>
           </Popover>
         </div>
 
-        <div className="flex items-stretch gap-4">
+        <div className="flex items-stretch gap-4 w-full max-w-xl">
           <div className="w-8 shrink-0">
             <EvalBar
               evalPercent={evalResult.evalPercent}
@@ -499,7 +719,7 @@ export default function ChessGame({
               evalText={evalResult.evalText}
             />
           </div>
-          <div className="max-w-xl shrink-0">
+          <div className="flex-1 min-w-0 aspect-square">
             <Chessboard options={chessboardOptions} />
           </div>
         </div>
@@ -531,7 +751,7 @@ export default function ChessGame({
             <DialogDescription>{gameOverMessage.description}</DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button onClick={newGame} className="w-full">
+            <Button onClick={() => newGame()} className="w-full">
               Play Again
             </Button>
           </DialogFooter>
@@ -562,7 +782,7 @@ export default function ChessGame({
             <DialogDescription>{botErrorDescription}</DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button onClick={newGame} className="w-full">
+            <Button onClick={() => newGame()} className="w-full">
               Restart Game
             </Button>
           </DialogFooter>
@@ -570,4 +790,4 @@ export default function ChessGame({
       </Dialog>
     </>
   );
-}
+});

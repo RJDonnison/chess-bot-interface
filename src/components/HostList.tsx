@@ -1,4 +1,4 @@
-const HOSTS_STORAGE_KEY = "chess-hosts";
+import { SidebarSection } from "./SidebarSection";
 
 export type Host = {
   id: string;
@@ -26,16 +26,11 @@ export const DEFAULT_HOSTS: Host[] = [
 
 type Props = {
   hosts: Host[];
-  setHosts: (hosts: Host[]) => void;
 };
 
-function HostList({ hosts, setHosts }: Props) {
+function HostList({ hosts }: Props) {
   return (
-    <div className="flex flex-col gap-1">
-      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-1 mb-1">
-        Bots
-      </p>
-
+    <SidebarSection title="Bots">
       {hosts.map((host) => (
         <div
           key={host.id}
@@ -44,7 +39,7 @@ function HostList({ hosts, setHosts }: Props) {
           <span className="text-sm text-left truncate flex-1">{host.name}</span>
         </div>
       ))}
-    </div>
+    </SidebarSection>
   );
 }
 
