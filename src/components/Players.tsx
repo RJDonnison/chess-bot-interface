@@ -8,6 +8,7 @@ import {
 import { Field, FieldLabel } from "@/components/ui/field";
 import type { Host } from "./HostList";
 import { Dot } from "lucide-react";
+import { SidebarSection } from "./SidebarSection";
 
 type Props = {
   hosts: Host[];
@@ -29,12 +30,8 @@ export default function Players({
   player2Color,
 }: Props) {
   return (
-    <div className="flex flex-col gap-3">
-      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-1">
-        Players
-      </p>
-
-      <div className="flex flex-col gap-2">
+    <div className="pb-2">
+      <div className="flex flex-col gap-2 pt-2 pb-4 border-b">
         {(
           [
             {
@@ -52,13 +49,12 @@ export default function Players({
           ] as const
         ).map(({ label, value, onChange, color }) => (
           <Field key={label} className="w-full">
-            <FieldLabel>
-              {label}{" "}
+            <FieldLabel className="text-xs">
+              {label}
               <span className="text-muted-foreground flex items-center">
                 <Dot /> {color}
               </span>
             </FieldLabel>
-
             <Select value={value} onValueChange={onChange}>
               <SelectTrigger className="h-8 text-sm flex-1">
                 <SelectValue placeholder="Select host" />

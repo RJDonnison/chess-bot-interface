@@ -1,31 +1,18 @@
 import { useState } from "react";
+import { Chess } from "chess.js";
 import {
-  ResizableHandle,
-  ResizablePanel,
-  ResizablePanelGroup,
-} from "@/components/ui/resizable";
-import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import HostList, {
   type Host,
   DEFAULT_HOSTS,
   loadHostsFromLocalStorage,
   saveHostsToLocalStorage,
 } from "@/components/HostList";
-import Players from "@/components/Players";
 import ChessGame, { type ChessGameRef } from "@/components/ChessGame";
 import { ScrollArea } from "./components/ui/scroll-area";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Label } from "@/components/ui/label";
-import { Field, FieldGroup } from "@/components/ui/field";
 import { Button } from "./components/ui/button";
-import { useRef } from "react";
+import { useRef, useEffect } from "react";
+import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { ChevronRight } from "lucide-react";
+import { Sidebar } from "./components/Sidebar";
 
 // URL query helpers
 function getQueryParam(param: string): string | null {
@@ -72,10 +59,45 @@ function savePlayerConfigToLocalStorage(config: PlayerConfig) {
   } catch {}
 }
 
+type BatchStats = {
+  p1Wins: number;
+  p2Wins: number;
+  draws: number;
+  gamesPlayed: number;
+};
+
+const BATCH_STATS_KEY = "chess-batch-stats";
+
+function loadBatchStatsFromLocalStorage(): BatchStats | null {
+  try {
+    const raw = localStorage.getItem(BATCH_STATS_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (
+      typeof parsed.p1Wins !== "number" ||
+      typeof parsed.p2Wins !== "number" ||
+      typeof parsed.draws !== "number" ||
+      typeof parsed.gamesPlayed !== "number"
+    ) {
+      return null;
+    }
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+function saveBatchStatsToLocalStorage(stats: BatchStats) {
+  try {
+    localStorage.setItem(BATCH_STATS_KEY, JSON.stringify(stats));
+  } catch {}
+}
+
 export default function App() {
   const timeoutQuery = getQueryParam("timeout");
   const depthQuery = getQueryParam("depth");
   const botDelayQuery = getQueryParam("botDelay");
+  const batchTotalQuery = getQueryParam("batchTotal");
 
   const savedPlayerConfig = loadPlayerConfigFromLocalStorage();
 
@@ -109,6 +131,24 @@ export default function App() {
     customHosts.length > 0 ? customHosts[0]!.id : "",
   );
 
+  const [batchTotalGames, setBatchTotalGamesState] = useState<number>(
+    batchTotalQuery ? parseInt(batchTotalQuery) : 10,
+  );
+  const [batchRunning, setBatchRunning] = useState(false);
+  const [batchStats, setBatchStats] = useState<BatchStats>(
+    loadBatchStatsFromLocalStorage() || {
+      p1Wins: 0,
+      p2Wins: 0,
+      draws: 0,
+      gamesPlayed: 0,
+    },
+  );
+
+  const lastBotConfigRef = useRef({
+    player1HostId,
+    player2HostId,
+  });
+
   const chessGameRef = useRef<ChessGameRef>(null);
 
   const boardDebug = () => {
@@ -129,6 +169,11 @@ export default function App() {
   const setBotDelay = (value: number) => {
     setBotDelayState(value);
     setQueryParam("botDelay", value);
+  };
+
+  const setBatchTotalGames = (value: number) => {
+    setBatchTotalGamesState(value);
+    setQueryParam("batchTotal", value);
   };
 
   const setPlayer1HostId = (id: string) => {
@@ -174,143 +219,162 @@ export default function App() {
     });
   }
 
-  return (
-    <ResizablePanelGroup orientation="horizontal" className="min-h-screen">
-      <ResizablePanel defaultSize={15}>
-        <ScrollArea className="p-4">
-          <div className="flex flex-col gap-2 py-2">
-            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-1 mb-1">
-              Timeout (seconds)
-            </label>
-            <Input
-              type="number"
-              min={0}
-              placeholder="30"
-              value={timeout}
-              onChange={(e) => setTimeout(Number(e.target.value))}
-              className="w-full"
-            />
-          </div>
+  function handleGameOver(result: "White" | "Black" | "Draw") {
+    const newStats = { ...batchStats };
+    if (result === player1Color) {
+      newStats.p1Wins++;
+    } else if (result === player2Color) {
+      newStats.p2Wins++;
+    } else {
+      newStats.draws++;
+    }
+    newStats.gamesPlayed++;
+    setBatchStats(newStats);
+    saveBatchStatsToLocalStorage(newStats);
 
-          <div className="flex flex-col gap-2 py-2">
-            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-1 mb-1">
-              Stockfish Depth
-            </label>
-            <Input
-              type="number"
-              min={1}
-              max={20}
-              placeholder="12"
-              value={stockfishDepth}
-              onChange={(e) => setStockfishDepth(Number(e.target.value))}
-              className="w-full"
-            />
-          </div>
+    if (newStats.gamesPlayed < batchTotalGames) {
+      const alternatedColor =
+        player1Color === "White" ? "Black" : "White";
+      window.setTimeout(() => {
+        chessGameRef.current?.newGame(alternatedColor);
+      }, 0);
+    } else {
+      setBatchRunning(false);
+    }
+  }
 
-          <div className="flex flex-col gap-2 py-2 pb-4">
-            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-1 mb-1">
-              Bot Delay (seconds)
-            </label>
-            <Input
-              type="number"
-              min={0}
-              step={0.1}
-              placeholder="0"
-              value={botDelay}
-              onChange={(e) => setBotDelay(Number(e.target.value))}
-              className="w-full"
-            />
-          </div>
+  function startBatch() {
+    setBatchStats({
+      p1Wins: 0,
+      p2Wins: 0,
+      draws: 0,
+      gamesPlayed: 0,
+    });
+    setBatchRunning(true);
+    window.setTimeout(() => {
+      chessGameRef.current?.newGame(player1Color);
+    }, 0);
+  }
 
-          {customHosts.length > 0 && (
-            <div className="border-t py-4">
-              <div className="flex flex-col gap-2">
-                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-1 mb-1">
-                  Debug
-                </label>
-                <Select value={debugHostId} onValueChange={setDebugHostId}>
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Select debug host" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {customHosts.map((host) => (
-                      <SelectItem key={host.id} value={host.id}>
-                        {host.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <FieldGroup className="flex items-center gap-2">
-                  <Field orientation="horizontal">
-                    <Checkbox
-                      id="board-debug-checkbox"
-                      name="board-debug-checkbox"
-                      checked={debugGameEnabled}
-                      onCheckedChange={(checked) => setDebugGameEnabled(checked === true)}
-                    />
-                    <Label htmlFor="board-debug-checkbox">Debug Game</Label>
-                  </Field>
-                  <Field orientation="horizontal">
-                    <Checkbox
-                      id="click-debug-checkbox"
-                      name="click-debug-checkbox"
-                      checked={debugClickEnabled}
-                      onCheckedChange={(checked) => setDebugClickEnabled(checked === true)}
-                    />
-                    <Label htmlFor="click-debug-checkbox">Debug Click</Label>
-                  </Field>
-                  <Button onClick={boardDebug}>Manual Debug</Button>
-                </FieldGroup>
-              </div>
-            </div>
-          )}
-
-          <div className="border-t py-4">
-            <Players
-              hosts={hosts}
-              player1HostId={player1HostId}
-              player2HostId={player2HostId}
-              onPlayer1Change={setPlayer1HostId}
-              onPlayer2Change={setPlayer2HostId}
-              player1Color={player1Color}
-              player2Color={player2Color}
-            />
-          </div>
-
-          <div className="border-t py-4">
-            <HostList hosts={hosts} setHosts={handleSetHosts} />
-          </div>
-        </ScrollArea>
-      </ResizablePanel>
-
-      <ResizableHandle withHandle />
-
-      <ResizablePanel defaultSize={75}>
-        <ChessGame
-          ref={chessGameRef}
-          onColorsAssigned={handleColorsAssigned}
-          humanColor={
-            player1HostId === "human" && player2HostId === "human"
-              ? "White"
-              : player1HostId === "human"
-                ? player1Color || undefined
-                : player2HostId === "human"
-                  ? player2Color || undefined
-                  : undefined
+  function resumeBatch() {
+    setBatchRunning(true);
+    window.setTimeout(() => {
+      const localGame = localStorage.getItem("chess-local-game");
+      if (localGame) {
+        try {
+          const parsed = JSON.parse(localGame);
+          const chess = new Chess(parsed.fen);
+          if (chess.isGameOver()) {
+            const alternatedColor = player1Color === "White" ? "Black" : "White";
+            chessGameRef.current?.newGame(alternatedColor);
           }
-          player1HostId={player1HostId}
-          player2HostId={player2HostId}
-          player1Color={player1Color}
-          player2Color={player2Color}
-          hosts={hosts}
-          timeout={timeout}
-          stockfishDepth={stockfishDepth}
-          botDelay={botDelay}
-          debugGameEnabled={debugGameEnabled}
-          debugClickEnabled={debugClickEnabled}
-          debugHost={hosts.find((h) => h.id === debugHostId)}
-        />
-      </ResizablePanel>
-    </ResizablePanelGroup>
+        } catch {}
+      }
+    }, 0);
+  }
+
+  useEffect(() => {
+    if (
+      batchRunning &&
+      (player1HostId !== lastBotConfigRef.current.player1HostId ||
+        player2HostId !== lastBotConfigRef.current.player2HostId)
+    ) {
+      setBatchRunning(false);
+    }
+    lastBotConfigRef.current = {
+      player1HostId,
+      player2HostId,
+    };
+  }, [player1HostId, player2HostId, batchRunning]);
+
+  const sidebarProps = {
+    hosts,
+    player1HostId,
+    player2HostId,
+    setPlayer1HostId,
+    setPlayer2HostId,
+    player1Color,
+    player2Color,
+    timeout,
+    setTimeout,
+    stockfishDepth,
+    setStockfishDepth,
+    botDelay,
+    setBotDelay,
+    customHosts,
+    debugHostId,
+    setDebugHostId,
+    debugGameEnabled,
+    setDebugGameEnabled,
+    debugClickEnabled,
+    setDebugClickEnabled,
+    boardDebug,
+    handleSetHosts,
+    batchTotalGames,
+    setBatchTotalGames,
+    batchRunning,
+    setBatchRunning,
+    batchStats,
+    handleGameOver,
+    startBatch,
+    resumeBatch,
+  };
+
+  return (
+    <>
+      <div className="flex h-screen">
+        <aside className="hidden lg:flex w-64 border-r">
+          <Sidebar {...sidebarProps} />
+        </aside>
+
+        <div className="block lg:hidden">
+          <Sheet modal={false}>
+            <SheetTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="fixed left-2 top-2 z-50 lg:hidden"
+              >
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            </SheetTrigger>
+            <SheetContent side="left" className="w-64 p-0">
+              <ScrollArea className="h-full p-4">
+                <Sidebar {...sidebarProps} />
+              </ScrollArea>
+            </SheetContent>
+          </Sheet>
+        </div>
+
+        <main className="flex-1 min-w-0">
+          <ChessGame
+            ref={chessGameRef}
+            onColorsAssigned={handleColorsAssigned}
+            onGameOver={batchRunning ? handleGameOver : undefined}
+            isBatchMode={batchRunning}
+            humanColor={
+              player1HostId === "human" && player2HostId === "human"
+                ? "White"
+                : player1HostId === "human"
+                  ? player1Color || undefined
+                  : player2HostId === "human"
+                    ? player2Color || undefined
+                    : undefined
+            }
+            player1HostId={player1HostId}
+            player2HostId={player2HostId}
+            player1Color={player1Color}
+            player2Color={player2Color}
+            hosts={hosts}
+            timeout={timeout}
+            stockfishDepth={stockfishDepth}
+            botDelay={botDelay}
+            debugGameEnabled={debugGameEnabled}
+            debugClickEnabled={debugClickEnabled}
+            debugHost={hosts.find((h) => h.id === debugHostId)}
+          />
+        </main>
+      </div>
+    </>
   );
 }

@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Input } from "./ui/input";
 import { Button } from "./ui/button";
 import { Plus, X, Check, Pencil, Trash2 } from "lucide-react";
+import { SidebarSection } from "./SidebarSection";
 
 const HOSTS_STORAGE_KEY = "chess-hosts";
 
@@ -123,16 +124,12 @@ function HostList({ hosts, setHosts }: Props) {
   }
 
   return (
-    <div className="flex flex-col gap-1">
-      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-1 mb-1">
-        Hosts
-      </p>
-
+    <SidebarSection title="Hosts">
       {hosts.map((host) =>
         editingId === host.id ? (
           <div
             key={host.id}
-            className="flex flex-col gap-1 p-2 rounded-md border bg-muted/30"
+            className="flex flex-col gap-2 rounded-md border bg-muted/30"
           >
             <div className="flex flex-col gap-0.5">
               <Input
@@ -280,7 +277,7 @@ function HostList({ hosts, setHosts }: Props) {
           <Plus className="w-3 h-3 mr-1" /> Add Host
         </Button>
       )}
-    </div>
+    </SidebarSection>
   );
 }
 
