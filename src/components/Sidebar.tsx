@@ -94,6 +94,14 @@ export function Sidebar({
     startBatch();
   };
 
+  const handleResumeBatchClick = () => {
+    if (player1HostId === "human" || player2HostId === "human") {
+      toast.error("2 bots must be selected to run a batch.");
+      return;
+    }
+    resumeBatch();
+  };
+
   return (
     <ScrollArea className="h-full w-full p-4">
       <Players
@@ -223,7 +231,7 @@ export function Sidebar({
             batchStats.gamesPlayed < batchTotalGames ? (
             <div className="flex flex-col gap-2">
               <Button
-                onClick={resumeBatch}
+                onClick={handleResumeBatchClick}
                 variant="default"
                 className="cursor-pointer"
               >

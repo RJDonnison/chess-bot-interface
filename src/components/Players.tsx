@@ -8,7 +8,6 @@ import {
 import { Field, FieldLabel } from "@/components/ui/field";
 import type { Host } from "./HostList";
 import { Dot } from "lucide-react";
-import { SidebarSection } from "./SidebarSection";
 
 type Props = {
   hosts: Host[];
