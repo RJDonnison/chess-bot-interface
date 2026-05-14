@@ -45,7 +45,6 @@ type SidebarProps = {
   debugClickEnabled: boolean;
   setDebugClickEnabled: (value: boolean) => void;
   boardDebug: () => void;
-  handleSetHosts: (hosts: Host[]) => void;
   batchTotalGames: number;
   setBatchTotalGames: (value: number) => void;
   batchRunning: boolean;
@@ -78,7 +77,6 @@ export function Sidebar({
   debugClickEnabled,
   setDebugClickEnabled,
   boardDebug,
-  handleSetHosts,
   batchTotalGames,
   setBatchTotalGames,
   batchRunning,
@@ -289,7 +287,7 @@ export function Sidebar({
           </div>
         </div>
       </SidebarSection>
-      <HostList hosts={hosts} setHosts={handleSetHosts} />
+      <HostList hosts={hosts} />
     </ScrollArea>
   );
 }

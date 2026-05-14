@@ -105,7 +105,7 @@ export default function App() {
   const [botDelay, setBotDelayState] = useState<number>(
     botDelayQuery ? parseFloat(botDelayQuery) : 0,
   );
-  const [hosts, setHosts] = useState<Host[]>(DEFAULT_HOSTS);
+  const hosts = DEFAULT_HOSTS;
   const [player1HostId, setPlayer1HostIdState] = useState<string>(
     savedPlayerConfig?.player1HostId || DEFAULT_HOSTS[0]!.id,
   );
@@ -190,10 +190,6 @@ export default function App() {
       player2Color,
     });
   };
-
-  function handleSetHosts(updated: Host[]) {
-    setHosts(updated);
-  }
 
   function handleColorsAssigned(
     player1: "White" | "Black",
@@ -299,7 +295,6 @@ export default function App() {
     debugClickEnabled,
     setDebugClickEnabled,
     boardDebug,
-    handleSetHosts,
     batchTotalGames,
     setBatchTotalGames,
     batchRunning,
