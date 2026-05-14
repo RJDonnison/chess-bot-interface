@@ -5,7 +5,7 @@ import {
   type PieceDropHandlerArgs,
 } from "react-chessboard";
 import { Button } from "@/components/ui/button";
-import { Dot, Loader } from "lucide-react";
+import { Dot, Loader, Undo2 } from "lucide-react";
 import {
   useRef,
   useState,
@@ -51,6 +51,7 @@ function bitboardToSquares(bitboard: bigint): Square[] {
 
 export interface ChessGameRef {
   manualDebug: () => void;
+  newGame: (forcePlayer1Color?: "White" | "Black") => void;
 }
 
 type Props = {
@@ -58,6 +59,8 @@ type Props = {
     player1: "White" | "Black",
     player2: "White" | "Black",
   ) => void;
+  onGameOver?: (result: "White" | "Black" | "Draw") => void;
+  isBatchMode?: boolean;
   humanColor?: Color;
   player1HostId: string;
   player2HostId: string;
@@ -98,6 +101,13 @@ function getGameOverMessage(chess: Chess): {
   if (chess.isInsufficientMaterial())
     return { title: "Draw", description: "Insufficient material." };
   return { title: "Game Over", description: "The game has ended." };
+}
+
+function getGameResult(chess: Chess): "White" | "Black" | "Draw" {
+  if (chess.isCheckmate()) {
+    return chess.turn() === "w" ? "Black" : "White";
+  }
+  return "Draw";
 }
 
 const LOCAL_STORAGE_KEY = "chess-local-game";
@@ -141,6 +151,8 @@ function initChessGame(): Chess {
 export default forwardRef<ChessGameRef, Props>(function ChessGame(
   {
     onColorsAssigned,
+    onGameOver,
+    isBatchMode = false,
     humanColor,
     player1HostId,
     player2HostId,
@@ -185,6 +197,7 @@ export default forwardRef<ChessGameRef, Props>(function ChessGame(
 
   const storedTurn = loadGameFromLocalStorage()?.turn;
   const [turnNumber, setTurnNumber] = useState<number>(storedTurn || 1);
+  const [gameId, setGameId] = useState<number>(0);
   const [chessPosition, setChessPosition] = useState(chessGame.fen());
 
   const turn = (): Color => (chessGame.turn() === "w" ? "White" : "Black");
@@ -220,6 +233,9 @@ export default forwardRef<ChessGameRef, Props>(function ChessGame(
         toast.error("Failed to fetch debug info");
       }
     },
+    newGame: (forcePlayer1Color?: "White" | "Black") => {
+      newGame(forcePlayer1Color);
+    },
   }));
 
   function saveMove() {
@@ -228,6 +244,17 @@ export default forwardRef<ChessGameRef, Props>(function ChessGame(
       turn: turnNumber + 1,
     });
     setTurnNumber(turnNumber + 1);
+  }
+
+  function handleGameOver() {
+    setGameOverMessage(getGameOverMessage(chessGame));
+    if (!isBatchMode) {
+      setGameOverOpen(true);
+    }
+    if (onGameOver) {
+      const result = getGameResult(chessGame);
+      onGameOver(result);
+    }
   }
 
   function getMoveOptions(square: Square) {
@@ -276,8 +303,7 @@ export default forwardRef<ChessGameRef, Props>(function ChessGame(
     setOptionSquares({});
     saveMove();
     if (chessGame.isGameOver()) {
-      setGameOverMessage(getGameOverMessage(chessGame));
-      setGameOverOpen(true);
+      handleGameOver();
     }
     return true;
   }
@@ -288,8 +314,7 @@ export default forwardRef<ChessGameRef, Props>(function ChessGame(
     setOptionSquares({});
     saveMove();
     if (chessGame.isGameOver()) {
-      setGameOverMessage(getGameOverMessage(chessGame));
-      setGameOverOpen(true);
+      handleGameOver();
     }
   }
 
@@ -511,8 +536,7 @@ export default forwardRef<ChessGameRef, Props>(function ChessGame(
           setTurnNumber(turnNumber + 1);
 
           if (chessGame.isGameOver()) {
-            setGameOverMessage(getGameOverMessage(chessGame));
-            setGameOverOpen(true);
+            handleGameOver();
           }
         } catch (error) {
           setBotErrorDescription("The bot returned an invalid move");
@@ -540,12 +564,13 @@ export default forwardRef<ChessGameRef, Props>(function ChessGame(
     stockfishDepth,
     botDelay,
     turnNumber,
+    gameId,
     humanColor,
   ]);
 
-  function newGame() {
+  function newGame(forcePlayer1Color?: "White" | "Black") {
     chessGame.reset();
-    const newColor = randomColor();
+    const newColor = forcePlayer1Color || randomColor();
 
     onColorsAssigned(newColor, newColor === "White" ? "Black" : "White");
 
@@ -560,6 +585,7 @@ export default forwardRef<ChessGameRef, Props>(function ChessGame(
       turn: 1,
     });
     setTurnNumber(1);
+    setGameId((prev) => prev + 1);
   }
 
   function handleNewGameClick() {
@@ -568,6 +594,62 @@ export default forwardRef<ChessGameRef, Props>(function ChessGame(
     } else {
       setConfirmOpen(true);
     }
+  }
+
+  function handleUndo() {
+    if (!canUndo()) return;
+
+    const isP1Human = player1HostId === "human";
+    const isP2Human = player2HostId === "human";
+    
+    let undoCount = 1;
+
+    if (isP1Human && isP2Human) {
+      undoCount = 1;
+    } else {
+      const whiteIsHuman = (isP1Human && player1Color === "White") || (isP2Human && player2Color === "White");
+      const blackIsHuman = (isP1Human && player1Color === "Black") || (isP2Human && player2Color === "Black");
+      const isWhiteTurn = chessGame.turn() === "w";
+      
+      const isHumanTurn = (whiteIsHuman && isWhiteTurn) || (blackIsHuman && !isWhiteTurn);
+      
+      if (isHumanTurn) {
+        undoCount = 2;
+      } else {
+        undoCount = 1;
+      }
+    }
+
+    for (let i = 0; i < undoCount && chessGame.history().length > 0; i++) {
+      chessGame.undo();
+    }
+
+    setChessPosition(chessGame.fen());
+    setTurnNumber(Math.max(1, turnNumber - undoCount));
+    saveGameToLocalStorage({
+      fen: chessGame.fen(),
+      turn: Math.max(1, turnNumber - undoCount),
+    });
+  }
+
+  function canUndo(): boolean {
+    const isP1Human = player1HostId === "human";
+    const isP2Human = player2HostId === "human";
+    
+    if (!isP1Human && !isP2Human) return false;
+
+    const history = chessGame.history();
+    if (history.length === 0) return false;
+
+    if (isP1Human && isP2Human) return true;
+
+    const blackIsHuman = (isP1Human && player1Color === "Black") || (isP2Human && player2Color === "Black");
+
+    if (blackIsHuman && history.length < 2) {
+      return false;
+    }
+
+    return true;
   }
 
   const chessboardOptions = {
@@ -586,7 +668,7 @@ export default forwardRef<ChessGameRef, Props>(function ChessGame(
   return (
     <>
       <div className="min-h-screen flex flex-col items-center justify-center gap-6 p-4">
-        <div className="relative">
+        <div className="flex justify-between w-full max-w-xl gap-4">
           <Button onClick={handleNewGameClick}>New Game</Button>
           <Popover open={confirmOpen} onOpenChange={setConfirmOpen}>
             <PopoverAnchor />
@@ -599,7 +681,11 @@ export default forwardRef<ChessGameRef, Props>(function ChessGame(
                   </p>
                 </div>
                 <div className="flex gap-2">
-                  <Button size="sm" className="flex-1" onClick={newGame}>
+                  <Button
+                    size="sm"
+                    className="flex-1"
+                    onClick={() => newGame()}
+                  >
                     Confirm
                   </Button>
                   <Button
@@ -613,6 +699,13 @@ export default forwardRef<ChessGameRef, Props>(function ChessGame(
                 </div>
               </div>
             </PopoverContent>
+            <Button
+              onClick={handleUndo}
+              disabled={!canUndo()}
+              className="text-center flex items-center"
+            >
+              Undo Move
+            </Button>
           </Popover>
         </div>
 
@@ -658,7 +751,7 @@ export default forwardRef<ChessGameRef, Props>(function ChessGame(
             <DialogDescription>{gameOverMessage.description}</DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button onClick={newGame} className="w-full">
+            <Button onClick={() => newGame()} className="w-full">
               Play Again
             </Button>
           </DialogFooter>
@@ -689,7 +782,7 @@ export default forwardRef<ChessGameRef, Props>(function ChessGame(
             <DialogDescription>{botErrorDescription}</DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button onClick={newGame} className="w-full">
+            <Button onClick={() => newGame()} className="w-full">
               Restart Game
             </Button>
           </DialogFooter>

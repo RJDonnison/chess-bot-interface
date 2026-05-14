@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Chess } from "chess.js";
 import {
   type Host,
   DEFAULT_HOSTS,
@@ -8,7 +9,7 @@ import {
 import ChessGame, { type ChessGameRef } from "@/components/ChessGame";
 import { ScrollArea } from "./components/ui/scroll-area";
 import { Button } from "./components/ui/button";
-import { useRef } from "react";
+import { useRef, useEffect } from "react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { ChevronRight } from "lucide-react";
 import { Sidebar } from "./components/Sidebar";
@@ -58,10 +59,45 @@ function savePlayerConfigToLocalStorage(config: PlayerConfig) {
   } catch {}
 }
 
+type BatchStats = {
+  p1Wins: number;
+  p2Wins: number;
+  draws: number;
+  gamesPlayed: number;
+};
+
+const BATCH_STATS_KEY = "chess-batch-stats";
+
+function loadBatchStatsFromLocalStorage(): BatchStats | null {
+  try {
+    const raw = localStorage.getItem(BATCH_STATS_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (
+      typeof parsed.p1Wins !== "number" ||
+      typeof parsed.p2Wins !== "number" ||
+      typeof parsed.draws !== "number" ||
+      typeof parsed.gamesPlayed !== "number"
+    ) {
+      return null;
+    }
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+function saveBatchStatsToLocalStorage(stats: BatchStats) {
+  try {
+    localStorage.setItem(BATCH_STATS_KEY, JSON.stringify(stats));
+  } catch {}
+}
+
 export default function App() {
   const timeoutQuery = getQueryParam("timeout");
   const depthQuery = getQueryParam("depth");
   const botDelayQuery = getQueryParam("botDelay");
+  const batchTotalQuery = getQueryParam("batchTotal");
 
   const savedPlayerConfig = loadPlayerConfigFromLocalStorage();
 
@@ -95,6 +131,24 @@ export default function App() {
     customHosts.length > 0 ? customHosts[0]!.id : "",
   );
 
+  const [batchTotalGames, setBatchTotalGamesState] = useState<number>(
+    batchTotalQuery ? parseInt(batchTotalQuery) : 10,
+  );
+  const [batchRunning, setBatchRunning] = useState(false);
+  const [batchStats, setBatchStats] = useState<BatchStats>(
+    loadBatchStatsFromLocalStorage() || {
+      p1Wins: 0,
+      p2Wins: 0,
+      draws: 0,
+      gamesPlayed: 0,
+    },
+  );
+
+  const lastBotConfigRef = useRef({
+    player1HostId,
+    player2HostId,
+  });
+
   const chessGameRef = useRef<ChessGameRef>(null);
 
   const boardDebug = () => {
@@ -115,6 +169,11 @@ export default function App() {
   const setBotDelay = (value: number) => {
     setBotDelayState(value);
     setQueryParam("botDelay", value);
+  };
+
+  const setBatchTotalGames = (value: number) => {
+    setBatchTotalGamesState(value);
+    setQueryParam("batchTotal", value);
   };
 
   const setPlayer1HostId = (id: string) => {
@@ -160,6 +219,74 @@ export default function App() {
     });
   }
 
+  function handleGameOver(result: "White" | "Black" | "Draw") {
+    const newStats = { ...batchStats };
+    if (result === player1Color) {
+      newStats.p1Wins++;
+    } else if (result === player2Color) {
+      newStats.p2Wins++;
+    } else {
+      newStats.draws++;
+    }
+    newStats.gamesPlayed++;
+    setBatchStats(newStats);
+    saveBatchStatsToLocalStorage(newStats);
+
+    if (newStats.gamesPlayed < batchTotalGames) {
+      const alternatedColor =
+        player1Color === "White" ? "Black" : "White";
+      window.setTimeout(() => {
+        chessGameRef.current?.newGame(alternatedColor);
+      }, 0);
+    } else {
+      setBatchRunning(false);
+    }
+  }
+
+  function startBatch() {
+    setBatchStats({
+      p1Wins: 0,
+      p2Wins: 0,
+      draws: 0,
+      gamesPlayed: 0,
+    });
+    setBatchRunning(true);
+    window.setTimeout(() => {
+      chessGameRef.current?.newGame(player1Color);
+    }, 0);
+  }
+
+  function resumeBatch() {
+    setBatchRunning(true);
+    window.setTimeout(() => {
+      const localGame = localStorage.getItem("chess-local-game");
+      if (localGame) {
+        try {
+          const parsed = JSON.parse(localGame);
+          const chess = new Chess(parsed.fen);
+          if (chess.isGameOver()) {
+            const alternatedColor = player1Color === "White" ? "Black" : "White";
+            chessGameRef.current?.newGame(alternatedColor);
+          }
+        } catch {}
+      }
+    }, 0);
+  }
+
+  useEffect(() => {
+    if (
+      batchRunning &&
+      (player1HostId !== lastBotConfigRef.current.player1HostId ||
+        player2HostId !== lastBotConfigRef.current.player2HostId)
+    ) {
+      setBatchRunning(false);
+    }
+    lastBotConfigRef.current = {
+      player1HostId,
+      player2HostId,
+    };
+  }, [player1HostId, player2HostId, batchRunning]);
+
   const sidebarProps = {
     hosts,
     player1HostId,
@@ -183,6 +310,14 @@ export default function App() {
     setDebugClickEnabled,
     boardDebug,
     handleSetHosts,
+    batchTotalGames,
+    setBatchTotalGames,
+    batchRunning,
+    setBatchRunning,
+    batchStats,
+    handleGameOver,
+    startBatch,
+    resumeBatch,
   };
 
   return (
@@ -215,6 +350,8 @@ export default function App() {
           <ChessGame
             ref={chessGameRef}
             onColorsAssigned={handleColorsAssigned}
+            onGameOver={batchRunning ? handleGameOver : undefined}
+            isBatchMode={batchRunning}
             humanColor={
               player1HostId === "human" && player2HostId === "human"
                 ? "White"

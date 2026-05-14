@@ -14,6 +14,14 @@ import { Field, FieldGroup } from "@/components/ui/field";
 import { Button } from "@/components/ui/button";
 import { SidebarSection } from "@/components/SidebarSection";
 import HostList, { Host } from "./HostList";
+import { toast } from "sonner";
+
+type BatchStats = {
+  p1Wins: number;
+  p2Wins: number;
+  draws: number;
+  gamesPlayed: number;
+};
 
 type SidebarProps = {
   hosts: Host[];
@@ -38,6 +46,14 @@ type SidebarProps = {
   setDebugClickEnabled: (value: boolean) => void;
   boardDebug: () => void;
   handleSetHosts: (hosts: Host[]) => void;
+  batchTotalGames: number;
+  setBatchTotalGames: (value: number) => void;
+  batchRunning: boolean;
+  setBatchRunning: (value: boolean) => void;
+  batchStats: BatchStats;
+  handleGameOver: (result: "White" | "Black" | "Draw") => void;
+  startBatch: () => void;
+  resumeBatch: () => void;
 };
 
 export function Sidebar({
@@ -63,7 +79,23 @@ export function Sidebar({
   setDebugClickEnabled,
   boardDebug,
   handleSetHosts,
+  batchTotalGames,
+  setBatchTotalGames,
+  batchRunning,
+  setBatchRunning,
+  batchStats,
+  handleGameOver,
+  startBatch,
+  resumeBatch,
 }: SidebarProps) {
+  const handleStartBatchClick = () => {
+    if (player1HostId === "human" || player2HostId === "human") {
+      toast.error("2 bots must be selected to run a batch.");
+      return;
+    }
+    startBatch();
+  };
+
   return (
     <ScrollArea className="h-full w-full p-4">
       <Players
@@ -165,6 +197,98 @@ export function Sidebar({
           </div>
         </SidebarSection>
       )}
+      <SidebarSection title="Batch Games">
+        <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-2">
+            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-1 mb-1">
+              Total Games
+            </label>
+            <Input
+              type="number"
+              min={1}
+              placeholder="10"
+              value={batchTotalGames}
+              onChange={(e) => setBatchTotalGames(Number(e.target.value))}
+              className="w-full"
+              disabled={batchRunning}
+            />
+          </div>
+          {batchRunning ? (
+            <Button
+              onClick={() => setBatchRunning(false)}
+              className="w-full cursor-pointer"
+              variant="destructive"
+            >
+              Stop Batch
+            </Button>
+          ) : batchStats.gamesPlayed > 0 &&
+            batchStats.gamesPlayed < batchTotalGames ? (
+            <div className="flex flex-col gap-2">
+              <Button
+                onClick={resumeBatch}
+                variant="default"
+                className="cursor-pointer"
+              >
+                Resume Batch
+              </Button>
+              <Button
+                onClick={handleStartBatchClick}
+                variant="secondary"
+                className="cursor-pointer"
+              >
+                Reset Batch
+              </Button>
+            </div>
+          ) : (
+            <Button
+              onClick={handleStartBatchClick}
+              className="w-full cursor-pointer"
+              variant="default"
+            >
+              Start Batch
+            </Button>
+          )}
+          <div className="flex flex-col gap-2">
+            <div className="flex justify-between text-xs font-semibold text-muted-foreground">
+              <span>
+                {batchStats.gamesPlayed} / {batchTotalGames}
+              </span>
+            </div>
+            <div className="flex h-4 rounded overflow-hidden">
+              {batchStats.p1Wins > 0 && (
+                <div
+                  className="bg-green-600 flex items-center justify-center text-xs font-bold text-white"
+                  style={{
+                    width: `${(batchStats.p1Wins / Math.max(1, batchStats.gamesPlayed)) * 100}%`,
+                  }}
+                >
+                  {batchStats.p1Wins > 0 ? batchStats.p1Wins : ""}
+                </div>
+              )}
+              {batchStats.draws > 0 && (
+                <div
+                  className="bg-slate-500 flex items-center justify-center text-xs font-bold text-white"
+                  style={{
+                    width: `${(batchStats.draws / Math.max(1, batchStats.gamesPlayed)) * 100}%`,
+                  }}
+                >
+                  {batchStats.draws > 0 ? batchStats.draws : ""}
+                </div>
+              )}
+              {batchStats.p2Wins > 0 && (
+                <div
+                  className="bg-red-600 flex items-center justify-center text-xs font-bold text-white"
+                  style={{
+                    width: `${(batchStats.p2Wins / Math.max(1, batchStats.gamesPlayed)) * 100}%`,
+                  }}
+                >
+                  {batchStats.p2Wins > 0 ? batchStats.p2Wins : ""}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </SidebarSection>
       <HostList hosts={hosts} setHosts={handleSetHosts} />
     </ScrollArea>
   );
