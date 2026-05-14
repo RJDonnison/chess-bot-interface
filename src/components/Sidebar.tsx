@@ -50,7 +50,6 @@ type SidebarProps = {
   batchRunning: boolean;
   setBatchRunning: (value: boolean) => void;
   batchStats: BatchStats;
-  handleGameOver: (result: "White" | "Black" | "Draw") => void;
   startBatch: () => void;
   resumeBatch: () => void;
 };
@@ -82,7 +81,6 @@ export function Sidebar({
   batchRunning,
   setBatchRunning,
   batchStats,
-  handleGameOver,
   startBatch,
   resumeBatch,
 }: SidebarProps) {
@@ -92,6 +90,14 @@ export function Sidebar({
       return;
     }
     startBatch();
+  };
+
+  const handleResumeBatchClick = () => {
+    if (player1HostId === "human" || player2HostId === "human") {
+      toast.error("2 bots must be selected to run a batch.");
+      return;
+    }
+    resumeBatch();
   };
 
   return (
@@ -223,7 +229,7 @@ export function Sidebar({
             batchStats.gamesPlayed < batchTotalGames ? (
             <div className="flex flex-col gap-2">
               <Button
-                onClick={resumeBatch}
+                onClick={handleResumeBatchClick}
                 variant="default"
                 className="cursor-pointer"
               >

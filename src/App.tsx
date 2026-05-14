@@ -110,7 +110,8 @@ export default function App() {
     savedPlayerConfig?.player1HostId || DEFAULT_HOSTS[0]!.id,
   );
   const [player2HostId, setPlayer2HostIdState] = useState<string>(
-    savedPlayerConfig?.player2HostId || DEFAULT_HOSTS[1]!.id,
+    savedPlayerConfig?.player2HostId ||
+      DEFAULT_HOSTS[DEFAULT_HOSTS.length - 1]!.id,
   );
   const [player1Color, setPlayer1Color] = useState<"White" | "Black">(
     savedPlayerConfig?.player1Color || "White",
@@ -300,7 +301,6 @@ export default function App() {
     batchRunning,
     setBatchRunning,
     batchStats,
-    handleGameOver,
     startBatch,
     resumeBatch,
   };
