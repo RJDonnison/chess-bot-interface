@@ -51,7 +51,6 @@ type SidebarProps = {
   batchRunning: boolean;
   setBatchRunning: (value: boolean) => void;
   batchStats: BatchStats;
-  handleGameOver: (result: "White" | "Black" | "Draw") => void;
   startBatch: () => void;
   resumeBatch: () => void;
 };
@@ -84,7 +83,6 @@ export function Sidebar({
   batchRunning,
   setBatchRunning,
   batchStats,
-  handleGameOver,
   startBatch,
   resumeBatch,
 }: SidebarProps) {

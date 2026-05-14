@@ -233,8 +233,7 @@ export default function App() {
     saveBatchStatsToLocalStorage(newStats);
 
     if (newStats.gamesPlayed < batchTotalGames) {
-      const alternatedColor =
-        player1Color === "White" ? "Black" : "White";
+      const alternatedColor = player1Color === "White" ? "Black" : "White";
       window.setTimeout(() => {
         chessGameRef.current?.newGame(alternatedColor);
       }, 0);
@@ -265,7 +264,8 @@ export default function App() {
           const parsed = JSON.parse(localGame);
           const chess = new Chess(parsed.fen);
           if (chess.isGameOver()) {
-            const alternatedColor = player1Color === "White" ? "Black" : "White";
+            const alternatedColor =
+              player1Color === "White" ? "Black" : "White";
             chessGameRef.current?.newGame(alternatedColor);
           }
         } catch {}
@@ -315,7 +315,6 @@ export default function App() {
     batchRunning,
     setBatchRunning,
     batchStats,
-    handleGameOver,
     startBatch,
     resumeBatch,
   };
