@@ -1,6 +1,6 @@
 # Chess Bot Web Interface
 
-A web interface for playing chess against bots. Play against the built-in Stockfish engine or challenge bots that follow the API spec.
+A web interface for playing chess against bots. Play against the built-in Stockfish engine or challenge bots that follow the API spec. The interface also has built in teasting tool supporting the display of debug bitboards and analysing batch games.
 
 ---
 
