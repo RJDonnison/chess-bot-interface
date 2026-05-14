@@ -601,18 +601,23 @@ export default forwardRef<ChessGameRef, Props>(function ChessGame(
 
     const isP1Human = player1HostId === "human";
     const isP2Human = player2HostId === "human";
-    
+
     let undoCount = 1;
 
     if (isP1Human && isP2Human) {
       undoCount = 1;
     } else {
-      const whiteIsHuman = (isP1Human && player1Color === "White") || (isP2Human && player2Color === "White");
-      const blackIsHuman = (isP1Human && player1Color === "Black") || (isP2Human && player2Color === "Black");
+      const whiteIsHuman =
+        (isP1Human && player1Color === "White") ||
+        (isP2Human && player2Color === "White");
+      const blackIsHuman =
+        (isP1Human && player1Color === "Black") ||
+        (isP2Human && player2Color === "Black");
       const isWhiteTurn = chessGame.turn() === "w";
-      
-      const isHumanTurn = (whiteIsHuman && isWhiteTurn) || (blackIsHuman && !isWhiteTurn);
-      
+
+      const isHumanTurn =
+        (whiteIsHuman && isWhiteTurn) || (blackIsHuman && !isWhiteTurn);
+
       if (isHumanTurn) {
         undoCount = 2;
       } else {
@@ -635,7 +640,7 @@ export default forwardRef<ChessGameRef, Props>(function ChessGame(
   function canUndo(): boolean {
     const isP1Human = player1HostId === "human";
     const isP2Human = player2HostId === "human";
-    
+
     if (!isP1Human && !isP2Human) return false;
 
     const history = chessGame.history();
@@ -643,7 +648,9 @@ export default forwardRef<ChessGameRef, Props>(function ChessGame(
 
     if (isP1Human && isP2Human) return true;
 
-    const blackIsHuman = (isP1Human && player1Color === "Black") || (isP2Human && player2Color === "Black");
+    const blackIsHuman =
+      (isP1Human && player1Color === "Black") ||
+      (isP2Human && player2Color === "Black");
 
     if (blackIsHuman && history.length < 2) {
       return false;
@@ -710,7 +717,7 @@ export default forwardRef<ChessGameRef, Props>(function ChessGame(
         </div>
 
         <div className="flex items-stretch gap-4 w-full max-w-xl">
-          <div className="w-8 shrink-0">
+          <div className="w-8 shrink-0 hidden lg:flex">
             <EvalBar
               evalPercent={evalResult.evalPercent}
               isWhiteBottom={
