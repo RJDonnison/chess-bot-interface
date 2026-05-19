@@ -22,6 +22,12 @@ export const DEFAULT_HOSTS: Host[] = [
     url: "https://chess.reujdon.dev/api/v2",
     isDefault: true,
   },
+  {
+    id: "v3",
+    name: "Alpha Beta Search",
+    url: "https://chess.reujdon.dev/api/v3",
+    isDefault: true,
+  },
 ];
 
 type Props = {
