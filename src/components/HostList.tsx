@@ -28,6 +28,12 @@ export const DEFAULT_HOSTS: Host[] = [
     url: "https://chess.reujdon.dev/api/v3",
     isDefault: true,
   },
+  {
+    id: "v4",
+    name: "Advance Search",
+    url: "https://chess.reujdon.dev/api/v4",
+    isDefault: true,
+  },
 ];
 
 type Props = {
