@@ -278,16 +278,17 @@ export default forwardRef<ChessGameRef, Props>(function ChessGame(
     setTurnNumber(turnNumber + 1);
   }
 
-  function handleGameOver(overrideMessage?: {
+  function handleGameOver(override?: {
     title: string;
     description: string;
+    result?: "White" | "Black" | "Draw";
   }) {
-    setGameOverMessage(overrideMessage ?? getGameOverMessage(chessGame));
+    setGameOverMessage(override ?? getGameOverMessage(chessGame));
     if (!isBatchMode) {
       setGameOverOpen(true);
     }
     if (onGameOver) {
-      onGameOver(getGameResult(chessGame));
+      onGameOver(override?.result ?? getGameResult(chessGame));
     }
   }
 
@@ -637,6 +638,7 @@ export default forwardRef<ChessGameRef, Props>(function ChessGame(
             handleGameOver({
               title: "Black Won!",
               description: "White ran out of time.",
+              result: "Black",
             });
           }
           return newTime;
@@ -649,6 +651,7 @@ export default forwardRef<ChessGameRef, Props>(function ChessGame(
             handleGameOver({
               title: "White Won!",
               description: "Black ran out of time.",
+              result: "White",
             });
           }
           return newTime;
