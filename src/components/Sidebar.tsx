@@ -53,6 +53,14 @@ type SidebarProps = {
   batchStats: BatchStats;
   startBatch: () => void;
   resumeBatch: () => void;
+  showEvalBar: boolean;
+  setShowEvalBar: (value: boolean) => void;
+  useTimer: boolean;
+  setUseTimer: (value: boolean) => void;
+  timerMinutes: number;
+  setTimerMinutes: (value: number) => void;
+  playSounds: boolean;
+  setPlaySounds: (value: boolean) => void;
 };
 
 export function Sidebar({
@@ -85,6 +93,14 @@ export function Sidebar({
   batchStats,
   startBatch,
   resumeBatch,
+  showEvalBar,
+  setShowEvalBar,
+  useTimer,
+  setUseTimer,
+  timerMinutes,
+  setTimerMinutes,
+  playSounds,
+  setPlaySounds,
 }: SidebarProps) {
   const handleStartBatchClick = () => {
     if (player1HostId === "human" || player2HostId === "human") {
@@ -115,9 +131,63 @@ export function Sidebar({
       />
 
       <SidebarSection title="Settings">
+        <div className="flex flex-col gap-2 py-2">
+          <FieldGroup>
+            <Field orientation="horizontal">
+              <Checkbox
+                id="eval-bar-checkbox"
+                name="eval-bar-checkbox"
+                checked={showEvalBar}
+                onCheckedChange={(checked) => setShowEvalBar(checked === true)}
+              />
+              <Label htmlFor="eval-bar-checkbox">Show Evaluation Bar</Label>
+            </Field>
+          </FieldGroup>
+        </div>
+        <div className="flex flex-col gap-2 py-2">
+          <FieldGroup>
+            <Field orientation="horizontal">
+              <Checkbox
+                id="timer-checkbox"
+                name="timer-checkbox"
+                checked={useTimer}
+                onCheckedChange={(checked) => setUseTimer(checked === true)}
+              />
+              <Label htmlFor="timer-checkbox">Enable Game Timer</Label>
+            </Field>
+          </FieldGroup>
+          {useTimer && (
+            <div className="mt-2">
+              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-1 mb-1">
+                Timer (minutes)
+              </label>
+              <Input
+                type="number"
+                min={1}
+                placeholder="5"
+                value={timerMinutes}
+                onChange={(e) => setTimerMinutes(Number(e.target.value))}
+                className="w-full"
+              />
+            </div>
+          )}
+        </div>
+        <div className="flex flex-col gap-2 pt-2 pb-4">
+          <FieldGroup>
+            <Field orientation="horizontal">
+              <Checkbox
+                id="sounds-checkbox"
+                name="sounds-checkbox"
+                checked={playSounds}
+                onCheckedChange={(checked) => setPlaySounds(checked === true)}
+              />
+              <Label htmlFor="sounds-checkbox">Play Move Sounds</Label>
+            </Field>
+          </FieldGroup>
+        </div>
         <div className="flex flex-col gap-2 pb-2">
           <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-1 mb-1">
-            Timeout (seconds)
+            Bot Timeout (seconds)
           </label>
           <Input
             type="number"
