@@ -52,6 +52,7 @@ async function getExternalBotMove(
   fen: string,
   host: Host,
   timeoutSeconds: number,
+  timeMs?: number,
 ): Promise<string | null> {
   const controller = new AbortController();
   const timeoutHandle = setTimeout(
@@ -62,6 +63,9 @@ async function getExternalBotMove(
   try {
     const url = new URL(`${host.url}/bestmove`);
     url.searchParams.append("fen", fen);
+    if (timeMs !== undefined) {
+      url.searchParams.append("time", timeMs.toString());
+    }
     const response = await fetch(url.toString(), {
       method: "GET",
       headers: { "Content-Type": "application/json" },
@@ -91,12 +95,13 @@ export async function getBotMove(
   host: Host,
   timeoutSeconds: number,
   depth: number = 12,
+  timeMs?: number,
 ): Promise<string | null> {
   if (host.id === "stockfish") {
     return await getLocalStockfishMove(fen, timeoutSeconds, depth);
   }
 
-  return await getExternalBotMove(fen, host, timeoutSeconds);
+  return await getExternalBotMove(fen, host, timeoutSeconds, timeMs);
 }
 
 export async function getDebugBitboard(

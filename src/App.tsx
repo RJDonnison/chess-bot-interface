@@ -93,6 +93,10 @@ export default function App() {
   const depthQuery = getQueryParam("depth");
   const botDelayQuery = getQueryParam("botDelay");
   const batchTotalQuery = getQueryParam("batchTotal");
+  const showEvalQuery = getQueryParam("showEval");
+  const useTimerQuery = getQueryParam("useTimer");
+  const timerMinutesQuery = getQueryParam("timerMinutes");
+  const playSoundsQuery = getQueryParam("playSounds");
 
   const savedPlayerConfig = loadPlayerConfigFromLocalStorage();
 
@@ -106,6 +110,18 @@ export default function App() {
     botDelayQuery ? parseFloat(botDelayQuery) : 0,
   );
   const hosts = DEFAULT_HOSTS;
+  const [showEvalBar, setShowEvalBarState] = useState<boolean>(
+    showEvalQuery ? showEvalQuery === "true" : true,
+  );
+  const [useTimer, setUseTimerState] = useState<boolean>(
+    useTimerQuery ? useTimerQuery === "true" : false,
+  );
+  const [timerMinutes, setTimerMinutesState] = useState<number>(
+    timerMinutesQuery ? parseInt(timerMinutesQuery) : 5,
+  );
+  const [playSounds, setPlaySoundsState] = useState<boolean>(
+    playSoundsQuery ? playSoundsQuery === "true" : true,
+  );
   const [player1HostId, setPlayer1HostIdState] = useState<string>(
     savedPlayerConfig?.player1HostId || DEFAULT_HOSTS[0]!.id,
   );
@@ -170,6 +186,26 @@ export default function App() {
   const setBatchTotalGames = (value: number) => {
     setBatchTotalGamesState(value);
     setQueryParam("batchTotal", value);
+  };
+
+  const setShowEvalBar = (value: boolean) => {
+    setShowEvalBarState(value);
+    setQueryParam("showEval", value ? "true" : "false");
+  };
+
+  const setUseTimer = (value: boolean) => {
+    setUseTimerState(value);
+    setQueryParam("useTimer", value ? "true" : "false");
+  };
+
+  const setTimerMinutes = (value: number) => {
+    setTimerMinutesState(value);
+    setQueryParam("timerMinutes", value);
+  };
+
+  const setPlaySounds = (value: boolean) => {
+    setPlaySoundsState(value);
+    setQueryParam("playSounds", value ? "true" : "false");
   };
 
   const setPlayer1HostId = (id: string) => {
@@ -303,6 +339,14 @@ export default function App() {
     batchStats,
     startBatch,
     resumeBatch,
+    showEvalBar,
+    setShowEvalBar,
+    useTimer,
+    setUseTimer,
+    timerMinutes,
+    setTimerMinutes,
+    playSounds,
+    setPlaySounds,
   };
 
   return (
@@ -357,6 +401,10 @@ export default function App() {
             debugGameEnabled={debugGameEnabled}
             debugClickEnabled={debugClickEnabled}
             debugHost={hosts.find((h) => h.id === debugHostId)}
+            showEvalBar={showEvalBar}
+            useTimer={useTimer}
+            timerMinutes={timerMinutes}
+            playSounds={playSounds}
           />
         </main>
       </div>
