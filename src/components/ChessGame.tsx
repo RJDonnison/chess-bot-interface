@@ -278,14 +278,16 @@ export default forwardRef<ChessGameRef, Props>(function ChessGame(
     setTurnNumber(turnNumber + 1);
   }
 
-  function handleGameOver() {
-    setGameOverMessage(getGameOverMessage(chessGame));
+  function handleGameOver(overrideMessage?: {
+    title: string;
+    description: string;
+  }) {
+    setGameOverMessage(overrideMessage ?? getGameOverMessage(chessGame));
     if (!isBatchMode) {
       setGameOverOpen(true);
     }
     if (onGameOver) {
-      const result = getGameResult(chessGame);
-      onGameOver(result);
+      onGameOver(getGameResult(chessGame));
     }
   }
 
@@ -611,6 +613,8 @@ export default forwardRef<ChessGameRef, Props>(function ChessGame(
     humanColor,
   ]);
 
+  const timeoutOccurredRef = useRef(false);
+
   useEffect(() => {
     if (!useTimer || chessGame.isGameOver()) {
       if (timerIntervalRef.current) {
@@ -621,18 +625,19 @@ export default forwardRef<ChessGameRef, Props>(function ChessGame(
     }
 
     timerIntervalRef.current = setInterval(() => {
+      if (timeoutOccurredRef.current) return;
+
       const currentTurn = turn();
 
       if (currentTurn === "White") {
         setWhiteTimeMs((prev) => {
           const newTime = Math.max(0, prev - 100);
           if (newTime === 0) {
-            handleGameOver();
-            setGameOverMessage({
+            timeoutOccurredRef.current = true;
+            handleGameOver({
               title: "Black Won!",
               description: "White ran out of time.",
             });
-            setGameOverOpen(true);
           }
           return newTime;
         });
@@ -640,12 +645,11 @@ export default forwardRef<ChessGameRef, Props>(function ChessGame(
         setBlackTimeMs((prev) => {
           const newTime = Math.max(0, prev - 100);
           if (newTime === 0) {
-            handleGameOver();
-            setGameOverMessage({
+            timeoutOccurredRef.current = true;
+            handleGameOver({
               title: "White Won!",
               description: "Black ran out of time.",
             });
-            setGameOverOpen(true);
           }
           return newTime;
         });
@@ -678,6 +682,7 @@ export default forwardRef<ChessGameRef, Props>(function ChessGame(
   }
 
   function newGame(forcePlayer1Color?: "White" | "Black") {
+    timeoutOccurredRef.current = false;
     chessGame.reset();
     const newColor = forcePlayer1Color || randomColor();
 
