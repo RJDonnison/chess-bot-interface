@@ -73,6 +73,10 @@ type Props = {
   debugGameEnabled?: boolean;
   debugClickEnabled?: boolean;
   debugHost?: Host;
+  showEvalBar?: boolean;
+  useTimer?: boolean;
+  timerMinutes?: number;
+  playSounds?: boolean;
 };
 
 type Color = "White" | "Black";
@@ -115,6 +119,8 @@ const LOCAL_STORAGE_KEY = "chess-local-game";
 type PersistedGameState = {
   fen: string;
   turn: number;
+  whiteTimeMs?: number;
+  blackTimeMs?: number;
 };
 
 function saveGameToLocalStorage(data: PersistedGameState) {
@@ -165,6 +171,10 @@ export default forwardRef<ChessGameRef, Props>(function ChessGame(
     debugGameEnabled = false,
     debugClickEnabled = false,
     debugHost,
+    showEvalBar = true,
+    useTimer = false,
+    timerMinutes = 5,
+    playSounds = true,
   }: Props,
   ref,
 ) {
@@ -188,6 +198,25 @@ export default forwardRef<ChessGameRef, Props>(function ChessGame(
   const [debugSquareStyles, setDebugSquareStyles] = useState<
     Record<string, React.CSSProperties>
   >({});
+
+  const [whiteTimeMs, setWhiteTimeMs] = useState<number>(() => {
+    const stored = loadGameFromLocalStorage();
+    if (useTimer && stored?.whiteTimeMs !== undefined) {
+      return stored.whiteTimeMs;
+    }
+    return useTimer ? timerMinutes * 60 * 1000 : 0;
+  });
+  const [blackTimeMs, setBlackTimeMs] = useState<number>(() => {
+    const stored = loadGameFromLocalStorage();
+    if (useTimer && stored?.blackTimeMs !== undefined) {
+      return stored.blackTimeMs;
+    }
+    return useTimer ? timerMinutes * 60 * 1000 : 0;
+  });
+  const [timeHistory, setTimeHistory] = useState<
+    Array<{ whiteTimeMs: number; blackTimeMs: number }>
+  >([]);
+  const timerIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const chessGameRef = useRef<Chess | null>(null);
   if (chessGameRef.current === null) {
@@ -239,9 +268,12 @@ export default forwardRef<ChessGameRef, Props>(function ChessGame(
   }));
 
   function saveMove() {
+    setTimeHistory((prev) => [...prev, { whiteTimeMs, blackTimeMs }]);
     saveGameToLocalStorage({
       fen: chessGame.fen(),
       turn: turnNumber + 1,
+      whiteTimeMs,
+      blackTimeMs,
     });
     setTurnNumber(turnNumber + 1);
   }
@@ -293,7 +325,9 @@ export default forwardRef<ChessGameRef, Props>(function ChessGame(
       return false;
     }
     try {
-      chessGame.move({ from, to });
+      const result = chessGame.move({ from, to });
+      const isCapture = result?.captured !== undefined;
+      playSound(isCapture);
     } catch {
       if (from === to) return false;
       return false;
@@ -321,11 +355,13 @@ export default forwardRef<ChessGameRef, Props>(function ChessGame(
   function handlePromotion(piece: "q" | "r" | "b" | "n") {
     if (!pendingPromotion) return;
     try {
-      chessGame.move({
+      const result = chessGame.move({
         from: pendingPromotion.from,
         to: pendingPromotion.to,
         promotion: piece,
       });
+      const isCapture = result?.captured !== undefined;
+      playSound(isCapture);
     } catch {
       toast.error("Invalid promotion");
     }
@@ -507,6 +543,7 @@ export default forwardRef<ChessGameRef, Props>(function ChessGame(
           currentTurnHost,
           timeout,
           stockfishDepth,
+          turn() === "White" ? whiteTimeMs : blackTimeMs,
         );
 
         if (cancelled) return;
@@ -525,7 +562,13 @@ export default forwardRef<ChessGameRef, Props>(function ChessGame(
         const promotion = move.length > 4 ? move[4] : undefined;
 
         try {
-          chessGame.move({ from, to, promotion: promotion as any });
+          const result = chessGame.move({
+            from,
+            to,
+            promotion: promotion as any,
+          });
+          const isCapture = result?.captured !== undefined;
+          playSound(isCapture);
           setChessPosition(chessGame.fen());
           setMoveFrom("");
           setOptionSquares({});
@@ -568,6 +611,72 @@ export default forwardRef<ChessGameRef, Props>(function ChessGame(
     humanColor,
   ]);
 
+  useEffect(() => {
+    if (!useTimer || chessGame.isGameOver()) {
+      if (timerIntervalRef.current) {
+        clearInterval(timerIntervalRef.current);
+        timerIntervalRef.current = null;
+      }
+      return;
+    }
+
+    timerIntervalRef.current = setInterval(() => {
+      const currentTurn = turn();
+
+      if (currentTurn === "White") {
+        setWhiteTimeMs((prev) => {
+          const newTime = Math.max(0, prev - 100);
+          if (newTime === 0) {
+            handleGameOver();
+            setGameOverMessage({
+              title: "Black Won!",
+              description: "White ran out of time.",
+            });
+            setGameOverOpen(true);
+          }
+          return newTime;
+        });
+      } else {
+        setBlackTimeMs((prev) => {
+          const newTime = Math.max(0, prev - 100);
+          if (newTime === 0) {
+            handleGameOver();
+            setGameOverMessage({
+              title: "White Won!",
+              description: "Black ran out of time.",
+            });
+            setGameOverOpen(true);
+          }
+          return newTime;
+        });
+      }
+    }, 100);
+
+    return () => {
+      if (timerIntervalRef.current) {
+        clearInterval(timerIntervalRef.current);
+        timerIntervalRef.current = null;
+      }
+    };
+  }, [useTimer, chessGame, turn()]);
+
+  function formatTime(ms: number): string {
+    const totalSeconds = Math.floor(ms / 1000);
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+    return `${minutes}:${seconds.toString().padStart(2, "0")}`;
+  }
+
+  const moveSound = useRef(new Audio("/move.mp3"));
+  const captureSound = useRef(new Audio("/capture.mp3"));
+
+  function playSound(isCapture: boolean): void {
+    if (!playSounds) return;
+    const audio = isCapture ? captureSound.current : moveSound.current;
+    audio.currentTime = 0;
+    audio.play().catch(() => {});
+  }
+
   function newGame(forcePlayer1Color?: "White" | "Black") {
     chessGame.reset();
     const newColor = forcePlayer1Color || randomColor();
@@ -580,9 +689,17 @@ export default forwardRef<ChessGameRef, Props>(function ChessGame(
     setConfirmOpen(false);
     setBotErrorOpen(false);
     setBotErrorDescription("");
+
+    setWhiteTimeMs(timerMinutes * 60 * 1000);
+    setBlackTimeMs(timerMinutes * 60 * 1000);
+
+    setTimeHistory([]);
+
     saveGameToLocalStorage({
       fen: chessGame.fen(),
       turn: 1,
+      whiteTimeMs: useTimer ? timerMinutes * 60 * 1000 : 0,
+      blackTimeMs: useTimer ? timerMinutes * 60 * 1000 : 0,
     });
     setTurnNumber(1);
     setGameId((prev) => prev + 1);
@@ -630,10 +747,29 @@ export default forwardRef<ChessGameRef, Props>(function ChessGame(
     }
 
     setChessPosition(chessGame.fen());
-    setTurnNumber(Math.max(1, turnNumber - undoCount));
+    const newTurnNumber = Math.max(1, turnNumber - undoCount);
+    setTurnNumber(newTurnNumber);
+
+    const newTimeHistory = timeHistory.slice(
+      0,
+      Math.max(0, timeHistory.length - undoCount),
+    );
+    setTimeHistory(newTimeHistory);
+
+    if (newTimeHistory.length > 0) {
+      const lastTimerState = newTimeHistory[newTimeHistory.length - 1];
+      setWhiteTimeMs(lastTimerState!.whiteTimeMs);
+      setBlackTimeMs(lastTimerState!.blackTimeMs);
+    } else if (useTimer) {
+      setWhiteTimeMs(timerMinutes * 60 * 1000);
+      setBlackTimeMs(timerMinutes * 60 * 1000);
+    }
+
     saveGameToLocalStorage({
       fen: chessGame.fen(),
-      turn: Math.max(1, turnNumber - undoCount),
+      turn: newTurnNumber,
+      whiteTimeMs,
+      blackTimeMs,
     });
   }
 
@@ -716,17 +852,40 @@ export default forwardRef<ChessGameRef, Props>(function ChessGame(
           </Popover>
         </div>
 
-        <div className="flex items-stretch gap-4 w-full max-w-xl">
-          <div className="w-8 shrink-0 hidden lg:flex">
-            <EvalBar
-              evalPercent={evalResult.evalPercent}
-              isWhiteBottom={
-                humanColor ? humanColor.toLowerCase() === "white" : true
-              }
-              evalText={evalResult.evalText}
-            />
+        {useTimer && (
+          <div className="w-full max-w-xl flex justify-between gap-4 px-2 py-2 rounded-lg">
+            <div className="flex items-center gap-2">
+              <div
+                className={`font-mono font-bold text-sm ${turn() === "Black" ? "text-white" : "text-muted-foreground"}`}
+                title="Black's remaining time"
+              >
+                Black {formatTime(blackTimeMs)}
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <div
+                className={`font-mono font-bold text-sm ${turn() === "White" ? "text-white" : "text-muted-foreground"}`}
+                title="White's remaining time"
+              >
+                {formatTime(whiteTimeMs)} White
+              </div>
+            </div>
           </div>
-          <div className="flex-1 min-w-0 aspect-square">
+        )}
+
+        <div className="flex items-stretch gap-4 w-full max-w-xl">
+          {showEvalBar && (
+            <div className="w-8 shrink-0 hidden lg:flex">
+              <EvalBar
+                evalPercent={evalResult.evalPercent}
+                isWhiteBottom={
+                  humanColor ? humanColor.toLowerCase() === "white" : true
+                }
+                evalText={evalResult.evalText}
+              />
+            </div>
+          )}
+          <div className="flex-1 min-w-0 aspect-square relative">
             <Chessboard options={chessboardOptions} />
           </div>
         </div>
