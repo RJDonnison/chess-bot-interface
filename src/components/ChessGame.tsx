@@ -546,7 +546,11 @@ export default forwardRef<ChessGameRef, Props>(function ChessGame(
           currentTurnHost,
           timeout,
           stockfishDepth,
-          turn() === "White" ? whiteTimeMs : blackTimeMs,
+          useTimer
+            ? turn() === "White"
+              ? whiteTimeMs
+              : blackTimeMs
+            : undefined,
         );
 
         if (cancelled) return;
