@@ -1,11 +1,4 @@
 import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import Players from "@/components/Players";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -13,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Field, FieldGroup } from "@/components/ui/field";
 import { Button } from "@/components/ui/button";
 import { SidebarSection } from "@/components/SidebarSection";
-import HostList, { Host } from "./HostList";
+import { Host } from "./HostList";
 import { toast } from "sonner";
 
 type BatchStats = {
@@ -37,14 +30,6 @@ type SidebarProps = {
   setStockfishDepth: (value: number) => void;
   botDelay: number;
   setBotDelay: (value: number) => void;
-  customHosts: Host[];
-  debugHostId: string;
-  setDebugHostId: (id: string) => void;
-  debugGameEnabled: boolean;
-  setDebugGameEnabled: (value: boolean) => void;
-  debugClickEnabled: boolean;
-  setDebugClickEnabled: (value: boolean) => void;
-  boardDebug: () => void;
   batchTotalGames: number;
   setBatchTotalGames: (value: number) => void;
   batchRunning: boolean;
@@ -76,14 +61,6 @@ export function Sidebar({
   setStockfishDepth,
   botDelay,
   setBotDelay,
-  customHosts,
-  debugHostId,
-  setDebugHostId,
-  debugGameEnabled,
-  setDebugGameEnabled,
-  debugClickEnabled,
-  setDebugClickEnabled,
-  boardDebug,
   batchTotalGames,
   setBatchTotalGames,
   batchRunning,
@@ -206,7 +183,7 @@ export function Sidebar({
               type="number"
               min={1}
               max={20}
-              placeholder="12"
+              placeholder="1"
               value={stockfishDepth}
               onChange={(e) => setStockfishDepth(Number(e.target.value))}
               className="w-full"
@@ -227,51 +204,6 @@ export function Sidebar({
             />
           </div>
         </SidebarSection>
-        {customHosts.length > 0 && (
-          <SidebarSection title="Debug">
-            <div className="flex flex-col gap-4">
-              <Select value={debugHostId} onValueChange={setDebugHostId}>
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Select debug host" />
-                </SelectTrigger>
-                <SelectContent>
-                  {customHosts.map((host) => (
-                    <SelectItem key={host.id} value={host.id}>
-                      {host.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <FieldGroup className="flex items-center gap-4">
-                <Field orientation="horizontal">
-                  <Checkbox
-                    id="board-debug-checkbox"
-                    name="board-debug-checkbox"
-                    checked={debugGameEnabled}
-                    onCheckedChange={(checked) =>
-                      setDebugGameEnabled(checked === true)
-                    }
-                  />
-                  <Label htmlFor="board-debug-checkbox">Debug Game</Label>
-                </Field>
-                <Field orientation="horizontal">
-                  <Checkbox
-                    id="click-debug-checkbox"
-                    name="click-debug-checkbox"
-                    checked={debugClickEnabled}
-                    onCheckedChange={(checked) =>
-                      setDebugClickEnabled(checked === true)
-                    }
-                  />
-                  <Label htmlFor="click-debug-checkbox">Debug Click</Label>
-                </Field>
-                <Button onClick={boardDebug} className="cursor-pointer">
-                  Manual Debug
-                </Button>
-              </FieldGroup>
-            </div>
-          </SidebarSection>
-        )}
         <SidebarSection title="Batch Games">
           <div className="flex flex-col gap-4">
             <div className="flex flex-col gap-2">

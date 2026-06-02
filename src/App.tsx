@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Chess } from "chess.js";
-import { type Host, DEFAULT_HOSTS } from "./components/HostList";
+import { DEFAULT_HOSTS } from "./components/HostList";
 import ChessGame, { type ChessGameRef } from "@/components/ChessGame";
 import { ScrollArea } from "./components/ui/scroll-area";
 import { Button } from "./components/ui/button";
@@ -104,7 +104,7 @@ export default function App() {
     timeoutQuery ? parseInt(timeoutQuery) : 30,
   );
   const [stockfishDepth, setDepthState] = useState<number>(
-    depthQuery ? parseInt(depthQuery) : 12,
+    depthQuery ? parseInt(depthQuery) : 1,
   );
   const [botDelay, setBotDelayState] = useState<number>(
     botDelayQuery ? parseFloat(botDelayQuery) : 0,
@@ -135,14 +135,6 @@ export default function App() {
   const [player2Color, setPlayer2Color] = useState<"White" | "Black">(
     savedPlayerConfig?.player2Color || "Black",
   );
-  const [debugGameEnabled, setDebugGameEnabled] = useState(false);
-  const [debugClickEnabled, setDebugClickEnabled] = useState<boolean>(false);
-
-  const customHosts = hosts.filter((h) => !h.isDefault);
-  const [debugHostId, setDebugHostId] = useState<string>(
-    customHosts.length > 0 ? customHosts[0]!.id : "",
-  );
-
   const [batchTotalGames, setBatchTotalGamesState] = useState<number>(
     batchTotalQuery ? parseInt(batchTotalQuery) : 10,
   );
@@ -162,10 +154,6 @@ export default function App() {
   });
 
   const chessGameRef = useRef<ChessGameRef>(null);
-
-  const boardDebug = () => {
-    chessGameRef.current?.manualDebug();
-  };
 
   const setTimeout = (value: number) => {
     setTimeoutState(value);
@@ -324,14 +312,6 @@ export default function App() {
     setStockfishDepth,
     botDelay,
     setBotDelay,
-    customHosts,
-    debugHostId,
-    setDebugHostId,
-    debugGameEnabled,
-    setDebugGameEnabled,
-    debugClickEnabled,
-    setDebugClickEnabled,
-    boardDebug,
     batchTotalGames,
     setBatchTotalGames,
     batchRunning,
@@ -398,9 +378,6 @@ export default function App() {
             timeout={timeout}
             stockfishDepth={stockfishDepth}
             botDelay={botDelay}
-            debugGameEnabled={debugGameEnabled}
-            debugClickEnabled={debugClickEnabled}
-            debugHost={hosts.find((h) => h.id === debugHostId)}
             showEvalBar={showEvalBar}
             useTimer={useTimer}
             timerMinutes={timerMinutes}

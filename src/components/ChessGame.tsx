@@ -5,7 +5,7 @@ import {
   type PieceDropHandlerArgs,
 } from "react-chessboard";
 import { Button } from "@/components/ui/button";
-import { Dot, Loader, Undo2 } from "lucide-react";
+import { Dot, Loader } from "lucide-react";
 import {
   useRef,
   useState,
@@ -70,9 +70,6 @@ type Props = {
   timeout: number;
   stockfishDepth: number;
   botDelay: number;
-  debugGameEnabled?: boolean;
-  debugClickEnabled?: boolean;
-  debugHost?: Host;
   showEvalBar?: boolean;
   useTimer?: boolean;
   timerMinutes?: number;
@@ -168,9 +165,6 @@ export default forwardRef<ChessGameRef, Props>(function ChessGame(
     timeout,
     stockfishDepth,
     botDelay,
-    debugGameEnabled = false,
-    debugClickEnabled = false,
-    debugHost,
     showEvalBar = true,
     useTimer = false,
     timerMinutes = 5,
@@ -204,14 +198,14 @@ export default forwardRef<ChessGameRef, Props>(function ChessGame(
     if (useTimer && stored?.whiteTimeMs !== undefined) {
       return stored.whiteTimeMs;
     }
-    return useTimer ? timerMinutes * 60 * 1000 : 0;
+    return timerMinutes * 60 * 1000;
   });
   const [blackTimeMs, setBlackTimeMs] = useState<number>(() => {
     const stored = loadGameFromLocalStorage();
     if (useTimer && stored?.blackTimeMs !== undefined) {
       return stored.blackTimeMs;
     }
-    return useTimer ? timerMinutes * 60 * 1000 : 0;
+    return timerMinutes * 60 * 1000;
   });
   const [timeHistory, setTimeHistory] = useState<
     Array<{ whiteTimeMs: number; blackTimeMs: number }>
@@ -232,40 +226,6 @@ export default forwardRef<ChessGameRef, Props>(function ChessGame(
   const turn = (): Color => (chessGame.turn() === "w" ? "White" : "Black");
 
   const evalResult = useStockfishEval(chessPosition, turn() === "White", 15);
-
-  useImperativeHandle(ref, () => ({
-    manualDebug: async () => {
-      if (!debugHost) {
-        toast.error("No debug host selected");
-        return;
-      }
-
-      setDebugSquareStyles({});
-      try {
-        const bitboard = await getDebugBitboard(debugHost, chessPosition);
-        if (bitboard === null) {
-          toast.error("Failed to fetch debug info");
-          return;
-        }
-
-        const debugSquares = bitboardToSquares(bitboard);
-        const newStyles: Record<string, React.CSSProperties> = {};
-        debugSquares.forEach((sq) => {
-          newStyles[sq] = {
-            background: "rgba(220, 38, 38, 0.4)",
-          };
-        });
-
-        setDebugSquareStyles(newStyles);
-      } catch (error) {
-        console.error("Debug API error:", error);
-        toast.error("Failed to fetch debug info");
-      }
-    },
-    newGame: (forcePlayer1Color?: "White" | "Black") => {
-      newGame(forcePlayer1Color);
-    },
-  }));
 
   function saveMove() {
     setTimeHistory((prev) => [...prev, { whiteTimeMs, blackTimeMs }]);
@@ -377,33 +337,6 @@ export default forwardRef<ChessGameRef, Props>(function ChessGame(
     square: Square,
     piece?: string | null,
   ): void {
-    if (debugClickEnabled && debugHost) {
-      setDebugSquareStyles({});
-      getDebugBitboard(debugHost, chessPosition, square)
-        .then((bitboard) => {
-          if (bitboard === null) return;
-
-          const debugSquares = bitboardToSquares(bitboard);
-
-          const newStyles: Record<string, React.CSSProperties> = {};
-          debugSquares.forEach((sq) => {
-            newStyles[sq] = {
-              background: "rgba(220, 38, 38, 0.4)",
-            };
-          });
-          newStyles[square] = {
-            background: "rgba(59, 130, 246, 0.4)",
-          };
-
-          setDebugSquareStyles(newStyles);
-        })
-        .catch((error) => {
-          console.error("Debug API error:", error);
-          toast.error("Failed to fetch debug info");
-        });
-      return;
-    }
-
     const currentTurnHost = getCurrentTurnHost();
     const isHumanTurn = currentTurnHost?.id === "human";
 
@@ -484,36 +417,6 @@ export default forwardRef<ChessGameRef, Props>(function ChessGame(
           : player2HostId;
     return hosts.find((h) => h.id === hostId) || null;
   }
-
-  useEffect(() => {
-    if (!debugGameEnabled || !debugHost) {
-      setDebugSquareStyles({});
-      return;
-    }
-
-    setDebugSquareStyles({});
-    getDebugBitboard(debugHost, chessPosition)
-      .then((bitboard) => {
-        if (bitboard === null) {
-          setDebugSquareStyles({});
-          return;
-        }
-
-        const debugSquares = bitboardToSquares(bitboard);
-        const newStyles: Record<string, React.CSSProperties> = {};
-        debugSquares.forEach((sq) => {
-          newStyles[sq] = {
-            background: "rgba(220, 38, 38, 0.4)",
-          };
-        });
-
-        setDebugSquareStyles(newStyles);
-      })
-      .catch((error) => {
-        console.error("Debug API error:", error);
-        setDebugSquareStyles({});
-      });
-  }, [debugGameEnabled, debugHost, chessPosition]);
 
   const isBotThinkingRef = useRef(false);
 
@@ -816,8 +719,7 @@ export default forwardRef<ChessGameRef, Props>(function ChessGame(
     onPieceDrag,
     canDragPiece,
     onSquareClick,
-    squareStyles:
-      debugGameEnabled || debugClickEnabled ? debugSquareStyles : optionSquares,
+    squareStyles: optionSquares,
   };
 
   return (
