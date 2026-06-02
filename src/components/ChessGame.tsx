@@ -50,7 +50,6 @@ function bitboardToSquares(bitboard: bigint): Square[] {
 }
 
 export interface ChessGameRef {
-  manualDebug: () => void;
   newGame: (forcePlayer1Color?: "White" | "Black") => void;
 }
 
@@ -521,6 +520,12 @@ export default forwardRef<ChessGameRef, Props>(function ChessGame(
     humanColor,
   ]);
 
+  useImperativeHandle(ref, () => ({
+    newGame: (forcePlayer1Color?: "White" | "Black") => {
+      newGame(forcePlayer1Color);
+    },
+  }));
+
   const timeoutOccurredRef = useRef(false);
 
   useEffect(() => {
@@ -787,7 +792,7 @@ export default forwardRef<ChessGameRef, Props>(function ChessGame(
           </div>
         )}
 
-        <div className="flex items-stretch gap-4 w-full max-w-xl">
+        <div className="flex items-stretch gap-4 w-full h-full max-w-xl">
           {showEvalBar && (
             <div className="w-8 shrink-0 hidden lg:flex">
               <EvalBar
@@ -799,7 +804,7 @@ export default forwardRef<ChessGameRef, Props>(function ChessGame(
               />
             </div>
           )}
-          <div className="flex-1 min-w-0 aspect-square relative">
+          <div className="flex-1 min-w-0 min-h-0 aspect-square relative">
             <Chessboard options={chessboardOptions} />
           </div>
         </div>
