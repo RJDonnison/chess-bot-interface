@@ -36,7 +36,7 @@ export const DEFAULT_HOSTS: Host[] = [
   },
   {
     id: "v5",
-    name: "Multi-Thre aded Search",
+    name: "Multi-Threaded Search",
     url: "https://chess.reujdon.dev/api/v5",
     isDefault: true,
   },
